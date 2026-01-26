@@ -26,7 +26,7 @@ export function middleware(request: NextRequest) {
     const publicPaths = [
         '/login',
         '/portal/login',
-        '/api/v1/mobile/login',
+        '/api/v1/', // Allow all v1 API routes (Mobile App)
         '/api/health',
         '/hello.html',
         '/test-page',
