@@ -69,12 +69,3 @@ export function middleware(request: NextRequest) {
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     return response
 }
-
-export const config = {
-    matcher: [
-        '/api/:path*',
-        '/login',
-        '/portal/:path*',
-        '/((?!_next/static|_next/image|favicon.ico).*)',
-    ],
-}
