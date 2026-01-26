@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
     const publicPaths = [
         '/login',
         '/portal/login',
-        '/api/public/login',
+        '/api/v1/public/login',
         '/api/health',
         '/hello.html',
         '/test-page',
