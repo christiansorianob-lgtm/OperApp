@@ -39,11 +39,14 @@ export function middleware(request: NextRequest) {
 
     // 2. Check if the path is public
     if (publicPaths.some(p => path.startsWith(p))) {
-        // Add CORS headers to public responses too
+        // Add CORS headers to public responses
         const response = NextResponse.next()
-        response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+
+        response.headers.set('Access-Control-Allow-Origin', '*')
         response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version')
+        response.headers.set('Access-Control-Max-Age', '86400')
+
         return response
     }
 

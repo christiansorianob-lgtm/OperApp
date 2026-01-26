@@ -21,10 +21,7 @@ export async function GET(request: Request) {
         })
 
         if (!responsable) {
-            return NextResponse.json(
-                { error: "Responsable not found" },
-                { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } }
-            )
+            return NextResponse.json({ error: "Responsable not found" }, { status: 404 })
         }
 
         // 2. Find tasks assigned to this name
@@ -39,26 +36,9 @@ export async function GET(request: Request) {
             }
         })
 
-        return NextResponse.json(
-            { data: tareas },
-            { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } }
-        )
+        return NextResponse.json({ data: tareas })
     } catch (error) {
         console.error("API Error:", error)
-        return NextResponse.json(
-            { error: "Internal Server Error" },
-            { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
-        )
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
     }
-}
-
-export async function OPTIONS() {
-    return new NextResponse(null, {
-        status: 200,
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-    });
 }
