@@ -1,0 +1,375 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// 1) CLIENTES (Antes Obra) -- Entidad Comercial
+// -----------------------------------------------------------------------------
+model Cliente {
+  id              String        @id @default(uuid())
+  codigo          String        @unique // CLI-000001
+  nombre          String
+  nit             String?       // Documento tributario
+  telefono        String?
+  email           String?
+  direccion       String?       // Dirección Fiscal
+  responsable     String        // Contacto principal
+  password        String?       // Contraseña para acceso al portal
+  portalAccess    Boolean       @default(false) // Acceso habilitado
+  estado          EstadoCliente @default(ACTIVO)
+  observaciones   String?       @db.Text
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relaciones
+  proyectos       Proyecto[]
+  tareas          Tarea[]
+  usuarios        Usuario[] // Usuarios del portal asociados a este Cliente
+  // En este modelo, Maquinaria y Productos están asignados a Proyectos, 
+  // pero podríamos tenerlos aquí si fueran activos globales del cliente.
+  // Por ahora seguimos el plan de asignarlos a Proyectos o Globales de la Empresa (OperApp).
+  // Si los activos son de OperApp, no deberían estar ligados a Cliente forzosamente,
+  // pero el modelo anterior los ligaba a "Finca". 
+  // Asumiremos que Productos/Maquinaria se gestionan por PROYECTO para control de stock y ubicación.
+}
+
+enum EstadoCliente {
+  ACTIVO
+  INACTIVO
+}
+
+// -----------------------------------------------------------------------------
+// 2) PROYECTOS (Antes Frente/Lote) -- Obra Civil / Lugar de Operación
+// -----------------------------------------------------------------------------
+model Proyecto {
+  id              String   @id @default(uuid())
+  codigo          String   // Unico dentro del cliente ? O global? Mejor global o compuesto.
+  clienteId       String
+  nombre          String
+  descripcion     String?
+  
+  // Ubicación (Sin coordenadas, solo administrativa)
+  departamento    String?
+  municipio       String?
+  direccion       String?  // Dirección puntual de la obra
+
+  fechaInicio     DateTime?
+  fechaFinEstimada DateTime?
+  
+  estado          EstadoProyecto @default(EN_EJECUCION)
+  observaciones   String?  @db.Text
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cliente         Cliente  @relation(fields: [clienteId], references: [id])
+  
+  // Relaciones
+  tareas          Tarea[]
+  usosMaquinaria  UsoMaquinaria[]
+  movimientosInventario MovimientoInventario[]
+  
+  // Recursos asignados al Proyecto (Bodega de Proyecto, Flota en Proyecto)
+  maquinarias     Maquinaria[] 
+  productos       Producto[]
+
+  @@unique([clienteId, codigo]) 
+}
+
+enum EstadoProyecto {
+  PLANIFICACION
+  EN_EJECUCION
+  PAUSADO
+  FINALIZADO
+  CANCELADO
+}
+
+// -----------------------------------------------------------------------------
+// 3) TAREAS / ACTIVIDADES
+// -----------------------------------------------------------------------------
+model Tarea {
+  id                  String   @id @default(uuid())
+  codigo              String   @unique // TAR-000001
+  proyectoId          String?  
+  clienteId           String?  // Actividad administrativa o sin proyecto especifico
+  
+  nivel               NivelTarea
+  fechaProgramada     DateTime
+  fechaInicioReal     DateTime? 
+  fechaEjecucion      DateTime? 
+  tipo                String // Excavación, Cimentación, Estructura, etc.
+  descripcion         String?  @db.Text
+  responsable         String
+  duracionEstimadaHoras Float?
+  duracionRealHoras   Float?
+  estado              EstadoTarea @default(PROGRAMADA)
+  prioridad           PrioridadTarea @default(MEDIA)
+  evidencias          String?  
+  requiereTrazabilidad Boolean @default(false)
+  observaciones       String?  @db.Text
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  proyecto            Proyecto? @relation(fields: [proyectoId], references: [id])
+  cliente             Cliente?  @relation(fields: [clienteId], references: [id])
+  tipoActividad       TipoActividad? @relation(fields: [tipoActividadId], references: [id])
+  tipoActividadId     String?
+
+  // Relaciones
+  usosMaquinaria      UsoMaquinaria[]
+  consumos            MovimientoInventario[]
+  trazabilidad        Trazabilidad[]
+}
+
+model Trazabilidad {
+  id        String   @id @default(uuid())
+  tareaId   String
+  lat       Float
+  lng       Float
+  accuracy  Float?
+  battery   Float?
+  timestamp DateTime
+  createdAt DateTime @default(now())
+
+  tarea     Tarea    @relation(fields: [tareaId], references: [id])
+}
+
+enum NivelTarea {
+  CLIENTE
+  PROYECTO
+}
+
+enum EstadoTarea {
+  PROGRAMADA
+  EN_PROCESO
+  EJECUTADA
+  CANCELADA
+}
+
+enum PrioridadTarea {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+// -----------------------------------------------------------------------------
+// 4) MAQUINARIA
+// -----------------------------------------------------------------------------
+model Maquinaria {
+  id                      String   @id @default(uuid())
+  codigo                  String   @unique 
+  
+  tipoMaquinariaId        String
+  marcaMaquinariaId       String
+  ubicacionMaquinariaId   String? // Opcional, o referencia a tabla
+  
+  proyectoId              String? // Asignada a un proyecto actual
+  
+  modelo                  String
+  serialPlaca             String
+  fechaCompra             DateTime?
+  estado                  EstadoMaquinaria @default(DISPONIBLE)
+  horometroActual         Float?
+  ultimoMantenimiento     DateTime?
+  observaciones           String?  @db.Text
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  tipo        TipoMaquinaria      @relation(fields: [tipoMaquinariaId], references: [id])
+  marca       MarcaMaquinaria     @relation(fields: [marcaMaquinariaId], references: [id])
+  ubicacion   UbicacionMaquinaria? @relation(fields: [ubicacionMaquinariaId], references: [id])
+  proyecto    Proyecto?           @relation(fields: [proyectoId], references: [id])
+
+  usos UsoMaquinaria[]
+}
+
+enum EstadoMaquinaria {
+  DISPONIBLE
+  EN_USO
+  EN_MANTENIMIENTO
+  FUERA_DE_SERVICIO
+  PRESTADA
+  EN_TRASLADO
+}
+
+// -----------------------------------------------------------------------------
+// CATALOGOS MAQUINARIA
+// -----------------------------------------------------------------------------
+model TipoMaquinaria {
+  id        String       @id @default(uuid())
+  nombre    String       @unique
+  maquinas  Maquinaria[]
+}
+
+model MarcaMaquinaria {
+  id        String       @id @default(uuid())
+  nombre    String       @unique
+  maquinas  Maquinaria[]
+}
+
+model UbicacionMaquinaria {
+  id        String       @id @default(uuid())
+  nombre    String       @unique
+  maquinas  Maquinaria[]
+}
+
+// -----------------------------------------------------------------------------
+// 5) USO_MAQUINARIA
+// -----------------------------------------------------------------------------
+model UsoMaquinaria {
+  id              String   @id @default(uuid())
+  maquinaId       String
+  tareaId         String   
+  proyectoId      String?
+  operador        String
+  fechaInicio     DateTime
+  fechaFin        DateTime
+  horasUso        Float
+  horometroInicio Float?
+  horometroFin    Float?
+  observaciones   String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  maquina         Maquinaria @relation(fields: [maquinaId], references: [id])
+  tarea           Tarea      @relation(fields: [tareaId], references: [id])
+  proyecto        Proyecto?  @relation(fields: [proyectoId], references: [id])
+}
+
+// -----------------------------------------------------------------------------
+// 6) ALMACÉN E INVENTARIO
+// -----------------------------------------------------------------------------
+model Producto {
+  id              String   @id @default(uuid())
+  proyectoId      String   // Stock perteneciente a este proyecto (Bodega Proyecto)
+  codigo          String   
+  nombre          String
+  categoria       String
+  unidadMedida    String
+  stockActual     Float    @default(0)
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  proyecto        Proyecto @relation(fields: [proyectoId], references: [id])
+  movimientos     MovimientoInventario[]
+
+  @@unique([proyectoId, codigo])
+}
+
+model MovimientoInventario {
+  id              String   @id @default(uuid())
+  proyectoId      String
+  productoId      String
+  tipoMovimiento  TipoMovimiento
+  fecha           DateTime
+  cantidad        Float
+  costoUnitario   Float?
+  referencia      String // Compra, Ajuste, Traslado, Consumo
+  tareaId         String? 
+  observaciones   String?  @db.Text
+  createdAt       DateTime @default(now())
+
+  proyecto        Proyecto @relation(fields: [proyectoId], references: [id])
+  producto        Producto @relation(fields: [productoId], references: [id])
+  tarea           Tarea?   @relation(fields: [tareaId], references: [id])
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+  AJUSTE
+}
+
+// -----------------------------------------------------------------------------
+// 7) CONFIGURACION GENERAL
+// -----------------------------------------------------------------------------
+
+model TipoActividad {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  tareas    Tarea[]
+}
+
+// NUEVO MODELO PARA ACCESO WEB (Admin y Clientes)
+enum PerfilUsuario {
+  ADMINISTRADOR
+  CLIENTE
+}
+
+model Usuario {
+  id        String        @id @default(uuid())
+  nombre    String
+  email     String        @unique
+  password  String
+  celular   String?
+  perfil    PerfilUsuario
+  activo    Boolean       @default(true)
+  
+  // Relación opcional con Cliente si es perfil CLIENTE
+  clienteId String?
+  cliente   Cliente?      @relation(fields: [clienteId], references: [id])
+
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+}
+
+// RESPONSABLE: Personal operativo (Ingenieros, Residentes, etc.)
+// Mantienen password para acceso a App Móvil.
+model Responsable {
+  id        String   @id @default(uuid())
+  nombre    String   @unique // Nombre completo 
+  email     String?
+  celular   String?
+  password  String   @default("123456") // Acceso para App Móvil
+  cargoId   String?
+  cargoRef  Cargo?   @relation(fields: [cargoId], references: [id])
+  activo    Boolean  @default(true)
+}
+
+model Cargo {
+  id        String       @id @default(uuid())
+  nombre    String       @unique
+  responsables Responsable[]
+}
+
+// -----------------------------------------------------------------------------
+// 10) CATALOGOS ALMACÉN
+// -----------------------------------------------------------------------------
+model NombreProducto {
+  id          String   @id @default(uuid())
+  nombre      String   @unique
+  categoriaId String?
+  categoria   CategoriaProducto? @relation(fields: [categoriaId], references: [id])
+}
+
+model CategoriaProducto {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+  nombres   NombreProducto[]
+}
+
+model UnidadMedida {
+  id        String   @id @default(uuid())
+  nombre    String   @unique
+}
+
+// -----------------------------------------------------------------------------
+// 11) LOCATION CATALOGS
+// -----------------------------------------------------------------------------
+model Departamento {
+  id        String      @id @default(uuid())
+  nombre    String      @unique
+  municipios Municipio[]
+}
+
+model Municipio {
+  id              String       @id @default(uuid())
+  nombre          String
+  departamentoId  String
+  departamento    Departamento @relation(fields: [departamentoId], references: [id])
+}

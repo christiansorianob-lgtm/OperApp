@@ -1,0 +1,222 @@
+'use server'
+
+import { db } from "@/lib/db"
+import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
+
+// --- CATALOGOS HELPERS ---
+
+export async function getTiposMaquinaria() {
+    try {
+        return { data: await db.tipoMaquinaria.findMany({ orderBy: { nombre: 'asc' } }) }
+    } catch (e) { return { error: "Error al cargar tipos" } }
+}
+
+export async function seedMaquinariaCatalogs() {
+    try {
+        const tipos = ['Retroexcavadora', 'Excavadora', 'Volqueta', 'Minicargador', 'Motoniveladora', 'Vibrocompactador', 'Torre Grúa', 'Mixer', 'Camión Grúa']
+        for (const t of tipos) {
+            const exists = await db.tipoMaquinaria.findFirst({ where: { nombre: t } })
+            if (!exists) await db.tipoMaquinaria.create({ data: { nombre: t } })
+        }
+
+        const marcas = ['CAT (Caterpillar)', 'Komatsu', 'Bobcat', 'Case', 'Volvo', 'Hitachi', 'John Deere', 'JCB', 'Doosan']
+        for (const m of marcas) {
+            const exists = await db.marcaMaquinaria.findFirst({ where: { nombre: m } })
+            if (!exists) await db.marcaMaquinaria.create({ data: { nombre: m } })
+        }
+
+        const ubicaciones = ['Patio Central', 'Taller Principal', 'Obra (En Sitio)', 'Alquilada']
+        for (const u of ubicaciones) {
+            const exists = await db.ubicacionMaquinaria.findFirst({ where: { nombre: u } })
+            if (!exists) await db.ubicacionMaquinaria.create({ data: { nombre: u } })
+        }
+
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) {
+        console.error("Error seeding catalogs:", e)
+        return { error: "Error al poblar catálogos" }
+    }
+}
+
+export async function createTipoMaquinaria(nombre: string) {
+    try {
+        const existing = await db.tipoMaquinaria.findFirst({ where: { nombre } })
+        if (existing) return { error: "Este tipo ya existe." }
+
+        await db.tipoMaquinaria.create({ data: { nombre } })
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) { return { error: "Error al crear tipo" } }
+}
+
+export async function deleteTipoMaquinaria(id: string) {
+    try {
+        await db.tipoMaquinaria.delete({ where: { id } })
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) { return { error: "Error al eliminar tipo" } }
+}
+
+export async function getMarcasMaquinaria() {
+    try {
+        return { data: await db.marcaMaquinaria.findMany({ orderBy: { nombre: 'asc' } }) }
+    } catch (e) { return { error: "Error al cargar marcas" } }
+}
+
+export async function createMarcaMaquinaria(nombre: string) {
+    try {
+        const existing = await db.marcaMaquinaria.findFirst({ where: { nombre } })
+        if (existing) return { error: "Esta marca ya existe." }
+
+        await db.marcaMaquinaria.create({ data: { nombre } })
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) { return { error: "Error al crear marca" } }
+}
+
+export async function deleteMarcaMaquinaria(id: string) {
+    try {
+        await db.marcaMaquinaria.delete({ where: { id } })
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) { return { error: "Error al eliminar marca" } }
+}
+
+export async function getUbicacionesMaquinaria() {
+    try {
+        return { data: await db.ubicacionMaquinaria.findMany({ orderBy: { nombre: 'asc' } }) }
+    } catch (e) { return { error: "Error al cargar ubicaciones" } }
+}
+
+export async function createUbicacionMaquinaria(nombre: string) {
+    try {
+        const existing = await db.ubicacionMaquinaria.findFirst({ where: { nombre } })
+        if (existing) return { error: "Esta ubicación ya existe." }
+
+        await db.ubicacionMaquinaria.create({ data: { nombre } })
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) { return { error: "Error al crear ubicación" } }
+}
+
+export async function deleteUbicacionMaquinaria(id: string) {
+    try {
+        await db.ubicacionMaquinaria.delete({ where: { id } })
+        revalidatePath('/maquinaria/new')
+        return { success: true }
+    } catch (e) { return { error: "Error al eliminar ubicación" } }
+}
+
+
+// --- MAQUINARIA CRUD ---
+
+// --- MAQUINARIA CRUD ---
+
+export async function getMaquinaria(filters?: { proyectoId?: string, estado?: string }) {
+    try {
+        const where: any = {}
+        if (filters?.proyectoId) where.proyectoId = filters.proyectoId
+        if (filters?.estado) where.estado = filters.estado
+
+        const maquinas = await db.maquinaria.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                tipo: true,
+                marca: true,
+                ubicacion: true,
+                proyecto: {
+                    include: { cliente: true }
+                }
+            }
+        })
+        return { data: maquinas }
+    } catch (error) {
+        console.error("Failed to fetch maquinaria:", error)
+        return { error: "Error al cargar maquinaria." }
+    }
+}
+
+export async function createMaquinaria(formData: FormData) {
+    // const codigo = formData.get("codigo") as string // Autogenerado now
+    const ubicacionId = formData.get("ubicacionId") as string
+    const tipoId = formData.get("tipoId") as string
+    const marcaId = formData.get("marcaId") as string
+    const proyectoId = formData.get("proyectoId") as string
+    const modelo = formData.get("modelo") as string
+    const serialPlaca = formData.get("serialPlaca") as string
+    const estado = formData.get("estado") as any
+    const observaciones = formData.get("observaciones") as string
+
+    if (!tipoId || !marcaId || !ubicacionId || !serialPlaca || !proyectoId) {
+        return { error: "Campos obligatorios faltantes (incluyendo Proyecto)." }
+    }
+
+    try {
+        // Autogenerate Code: MAQ-XXX
+        // Should be per obra or global? Usually machines have unique serial anyway.
+        // Let's keep code consecutive global or per obra?
+        // User said "diferencien por obra", probably meant visibility.
+        // Let's keep global count for code simplicity or switch to per obra if needed.
+        // Assuming global code is fine as long as they are distinct entities.
+        const count = await db.maquinaria.count() // Global count or per obra?
+        const nextId = count + 1
+        const codigo = `MAQ-${nextId.toString().padStart(3, '0')}`
+
+        const newMaquinaria = await db.maquinaria.create({
+            data: {
+                codigo,
+                tipoMaquinariaId: tipoId,
+                marcaMaquinariaId: marcaId,
+                ubicacionMaquinariaId: ubicacionId,
+                proyectoId,
+                modelo,
+                serialPlaca,
+                estado: estado || 'DISPONIBLE',
+                observaciones
+            }
+        })
+
+        const disableRedirect = formData.get("disable_redirect") === "true"
+        if (disableRedirect) {
+            revalidatePath('/maquinaria')
+            return { success: true, data: newMaquinaria }
+        }
+    } catch (error) {
+        console.error("Failed to create maquinaria:", error)
+        return { error: "Error al registrar maquina." }
+    }
+
+    revalidatePath('/maquinaria')
+    redirect('/maquinaria')
+}
+
+
+// --- USO MAQUINARIA ---
+
+export async function getUsoMaquinaria() {
+    try {
+        const usos = await db.usoMaquinaria.findMany({
+            include: {
+                maquina: {
+                    include: {
+                        tipo: true
+                    }
+                },
+                tarea: true,
+                proyecto: true
+            },
+            orderBy: { fechaInicio: 'desc' }
+        })
+        return { data: usos }
+    } catch (error) {
+        console.error("Failed to fetch usos:", error)
+        return { error: "Error al cargar historial de uso." }
+    }
+}
+
+export async function createUsoMaquinaria(formData: FormData) {
+    return { error: "Not implemented yet" }
+}
