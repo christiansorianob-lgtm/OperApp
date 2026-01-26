@@ -3,15 +3,8 @@ import { db } from "@/lib/db"
 
 export const dynamic = 'force-dynamic';
 
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
-    'Access-Control-Max-Age': '86400',
-}
-
 export async function OPTIONS() {
-    return NextResponse.json({}, { headers: corsHeaders })
+    return NextResponse.json({})
 }
 
 export async function GET(request: Request) {
@@ -21,7 +14,7 @@ export async function GET(request: Request) {
     if (!responsableId) {
         return NextResponse.json(
             { error: "Responsable ID required" },
-            { status: 400, headers: corsHeaders }
+            { status: 400 }
         )
     }
 
@@ -34,7 +27,7 @@ export async function GET(request: Request) {
         if (!responsable) {
             return NextResponse.json(
                 { error: "Responsable not found" },
-                { status: 404, headers: corsHeaders }
+                { status: 404 }
             )
         }
 
@@ -50,12 +43,12 @@ export async function GET(request: Request) {
             }
         })
 
-        return NextResponse.json({ data: tareas }, { status: 200, headers: corsHeaders })
+        return NextResponse.json({ data: tareas }, { status: 200 })
     } catch (error) {
         console.error("API Error:", error)
         return NextResponse.json(
             { error: "Internal Server Error" },
-            { status: 500, headers: corsHeaders }
+            { status: 500 }
         )
     }
 }
