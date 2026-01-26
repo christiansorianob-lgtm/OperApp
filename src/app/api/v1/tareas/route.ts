@@ -8,7 +8,10 @@ export async function GET(request: Request) {
     const responsableId = searchParams.get('responsableId')
 
     if (!responsableId) {
-        return NextResponse.json({ error: "Responsable ID required" }, { status: 400 })
+        return NextResponse.json(
+            { error: "Responsable ID required" },
+            { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
+        )
     }
 
     try {
@@ -18,26 +21,44 @@ export async function GET(request: Request) {
         })
 
         if (!responsable) {
-            return NextResponse.json({ error: "Responsable not found" }, { status: 404 })
+            return NextResponse.json(
+                { error: "Responsable not found" },
+                { status: 404, headers: { 'Access-Control-Allow-Origin': '*' } }
+            )
         }
 
         // 2. Find tasks assigned to this name
         const tareas = await db.tarea.findMany({
             where: {
                 responsable: responsable.nombre,
-                // Optional: Filter by status? Maybe only active tasks for mobile
                 estado: { not: 'CANCELADA' }
             },
             orderBy: { fechaProgramada: 'asc' },
             include: {
-
                 proyecto: true
             }
         })
 
-        return NextResponse.json({ data: tareas })
+        return NextResponse.json(
+            { data: tareas },
+            { status: 200, headers: { 'Access-Control-Allow-Origin': '*' } }
+        )
     } catch (error) {
         console.error("API Error:", error)
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })
+        return NextResponse.json(
+            { error: "Internal Server Error" },
+            { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
+        )
     }
+}
+
+export async function OPTIONS() {
+    return new NextResponse(null, {
+        status: 200,
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+    });
 }
