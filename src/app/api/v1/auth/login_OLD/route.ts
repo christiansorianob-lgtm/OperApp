@@ -6,14 +6,7 @@ export const dynamic = 'force-dynamic';
 
 // Handle OPTIONS for CORS
 export async function OPTIONS() {
-    return new NextResponse(null, {
-        status: 200,
-        headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        },
-    });
+    return NextResponse.json({})
 }
 
 export async function GET() {
@@ -30,7 +23,7 @@ export async function POST(req: Request) {
         if (!phone || !password) {
             return NextResponse.json(
                 { error: "Celular y contraseña requeridos" },
-                { status: 400, headers: { 'Access-Control-Allow-Origin': '*' } }
+                { status: 400 }
             );
         }
 
@@ -47,7 +40,7 @@ export async function POST(req: Request) {
         if (!responsable) {
             return NextResponse.json(
                 { error: "Credenciales incorrectas (Celular o contraseña)" },
-                { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } }
+                { status: 401 }
             );
         }
 
@@ -60,15 +53,14 @@ export async function POST(req: Request) {
                 celular: responsable.celular
             }
         }, {
-            status: 200,
-            headers: { 'Access-Control-Allow-Origin': '*' }
+            status: 200
         });
 
     } catch (error) {
         console.error("Login Route Error:", error);
         return NextResponse.json(
             { error: "Error procesando la solicitud" },
-            { status: 500, headers: { 'Access-Control-Allow-Origin': '*' } }
+            { status: 500 }
         );
     }
 }

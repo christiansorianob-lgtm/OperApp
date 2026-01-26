@@ -5,11 +5,5 @@ export async function GET() {
 }
 
 export async function OPTIONS() {
-    return NextResponse.json({}, {
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        }
-    });
+    return NextResponse.json({})
 }
