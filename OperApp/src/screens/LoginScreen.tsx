@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { API_BASE } from '../config';
 
-const API_URL = `${API_BASE}/public/login`;
+const API_URL = `${API_BASE}/mobile/login`;
 
 interface LoginScreenProps {
     onLogin: (user: any) => void;
