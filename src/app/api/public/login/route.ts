@@ -30,7 +30,7 @@ export async function POST(request: Request) {
                 activo: true
             },
             include: {
-                cargo: true
+                cargoRef: true
             }
         });
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
             user: {
                 id: responsable.id,
                 nombre: responsable.nombre,
-                cargo: responsable.cargo?.nombre || "Sin Cargo",
+                cargo: responsable.cargoRef?.nombre || "Sin Cargo",
                 celular: responsable.celular
             }
         }, { status: 200 });
