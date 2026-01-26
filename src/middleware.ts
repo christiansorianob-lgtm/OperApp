@@ -2,6 +2,26 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
+    // CORS Handling
+    const origin = request.headers.get('origin');
+
+    // Define allowed origins (or use '*' for public API)
+    // For mobile apps, origin might be null or specific
+    const allowedOrigin = origin || '*';
+
+    // Handle OPTIONS method for CORS preflight
+    if (request.method === 'OPTIONS') {
+        return new NextResponse(null, {
+            status: 200,
+            headers: {
+                'Access-Control-Allow-Origin': allowedOrigin,
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
+                'Access-Control-Max-Age': '86400',
+            },
+        });
+    }
+
     // 1. Define routes that do NOT need authentication
     const publicPaths = [
         '/login',
@@ -19,7 +39,12 @@ export function middleware(request: NextRequest) {
 
     // 2. Check if the path is public
     if (publicPaths.some(p => path.startsWith(p))) {
-        return NextResponse.next()
+        // Add CORS headers to public responses too
+        const response = NextResponse.next()
+        response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        return response
     }
 
     // 3. For protected routes, check for a session cookie
@@ -34,7 +59,12 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    return NextResponse.next()
+    // Pass CORS headers to protected routes as well
+    const response = NextResponse.next()
+    response.headers.set('Access-Control-Allow-Origin', allowedOrigin)
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    return response
 }
 
 export const config = {
