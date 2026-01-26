@@ -8,9 +8,16 @@ export async function GET() {
     return NextResponse.json({ message: "New Login API (public/login) is READY (DB Disabled)." }, { status: 200 });
 }
 
+// Helper for CORS Headers
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
 // Handle OPTIONS for CORS
 export async function OPTIONS() {
-    return NextResponse.json({})
+    return NextResponse.json({}, { headers: corsHeaders });
 }
 
 export async function POST(req: Request) {
@@ -23,7 +30,7 @@ export async function POST(req: Request) {
         if (!phone || !password) {
             return NextResponse.json(
                 { error: "Celular y contraseña requeridos" },
-                { status: 400 }
+                { status: 400, headers: corsHeaders }
             );
         }
 
@@ -40,7 +47,7 @@ export async function POST(req: Request) {
         if (!responsable) {
             return NextResponse.json(
                 { error: "Credenciales incorrectas" },
-                { status: 401 }
+                { status: 401, headers: corsHeaders }
             );
         }
 
@@ -53,14 +60,15 @@ export async function POST(req: Request) {
                 celular: responsable.celular
             }
         }, {
-            status: 200
+            status: 200,
+            headers: corsHeaders
         });
 
     } catch (error) {
         console.error("Login Route Error:", error);
         return NextResponse.json(
             { error: "Error procesando la solicitud" },
-            { status: 500 }
+            { status: 500, headers: corsHeaders }
         );
     }
 }
