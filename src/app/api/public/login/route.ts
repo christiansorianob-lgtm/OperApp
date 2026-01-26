@@ -1,6 +1,6 @@
 
 import { NextResponse } from 'next/server';
-// import { db } from "@/lib/db";
+import { db } from "@/lib/db";
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,6 @@ export async function POST(req: Request) {
         }
 
         // DB CHECK TEMPORARILY DISABLED
-        /*
         const responsable = await db.responsable.findFirst({
             where: {
                 celular: { equals: phone.trim() },
@@ -51,16 +50,14 @@ export async function POST(req: Request) {
                 { status: 401, headers: { 'Access-Control-Allow-Origin': '*' } }
             );
         }
-        */
 
-        // MOCK RESPONSE
         return NextResponse.json({
             success: true,
             user: {
-                id: 999,
-                nombre: "Usuario Test (DB Off)",
-                cargo: "Ingeniero Test",
-                celular: phone
+                id: responsable.id,
+                nombre: responsable.nombre,
+                cargo: responsable.cargoRef?.nombre || "Sin Cargo",
+                celular: responsable.celular
             }
         }, {
             status: 200,
