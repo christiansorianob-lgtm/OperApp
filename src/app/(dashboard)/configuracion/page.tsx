@@ -17,6 +17,12 @@ const configs = [
         icon: Users
     },
     {
+        name: "Usuarios del Sistema",
+        description: "Administradores y Clientes con acceso web.",
+        href: "/configuracion/usuarios",
+        icon: Settings
+    },
+    {
         name: "Nombres de Producto",
         description: "Catálogo de materiales e insumos.",
         href: "/configuracion/nombres-producto",
