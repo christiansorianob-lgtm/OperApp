@@ -16,6 +16,6 @@ export async function OPTIONS() {
 }
 
 // Minimal POST to test connectivity
-export async function POST(req) {
+export async function POST(req: Request) {
     return NextResponse.json({ success: true, message: "Login POST Reached" }, { status: 200 });
 }
