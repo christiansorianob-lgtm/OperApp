@@ -259,6 +259,14 @@ export function TareaForm({ clientes, proyectos, tiposActividad: initialTipos, r
                                     value={fechaProgramada}
                                     onChange={(e) => setFechaProgramada(e.target.value)}
                                     required
+                                    onClick={(e) => {
+                                        try {
+                                            (e.target as HTMLInputElement).showPicker();
+                                        } catch (error) {
+                                            // Fallback for browsers that don't support showPicker
+                                            console.debug("showPicker not supported", error);
+                                        }
+                                    }}
                                 />
                             </div>
                         </div>

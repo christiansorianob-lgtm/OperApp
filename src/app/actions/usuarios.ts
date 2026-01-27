@@ -44,6 +44,10 @@ export async function createUsuario(formData: FormData) {
         return { error: "Faltan campos obligatorios" }
     }
 
+    if (perfil === "CLIENTE" && (!clienteId || clienteId === "none")) {
+        return { error: "El usuario con perfil CLIENTE debe tener un Cliente Asociado." }
+    }
+
     try {
         await db.usuario.create({
             data: {
@@ -75,6 +79,10 @@ export async function updateUsuario(id: string, formData: FormData) {
 
     if (!nombre || !email || !perfil) {
         return { error: "Faltan campos obligatorios" }
+    }
+
+    if (perfil === "CLIENTE" && (!clienteId || clienteId === "none")) {
+        return { error: "El usuario con perfil CLIENTE debe tener un Cliente Asociado." }
     }
 
     try {
