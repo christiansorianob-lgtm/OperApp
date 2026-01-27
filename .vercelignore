@@ -1,6 +1,6 @@
 # Vercel Ignore
 OperApp/
-Mobile/
+/Mobile/
 node_modules/
 .next/
 .git/

@@ -1,6 +1,6 @@
 // Configuration
-const HOST = 'localhost';
-const PORT = 3000;
+const HOST = 'oper-app.vercel.app';
+const PORT = 443;
 const PATH = '/api/v1/mobile/login';
 
 function makeRequest(method, body = null) {
@@ -23,7 +23,7 @@ function makeRequest(method, body = null) {
         }
 
         console.log(`\n--- Testing ${method} ---`);
-        const req = require('http').request(options, (res) => {
+        const req = require('https').request(options, (res) => {
             console.log(`STATUS: ${res.statusCode}`);
             console.log(`HEADERS:`, JSON.stringify(res.headers, null, 2));
 
