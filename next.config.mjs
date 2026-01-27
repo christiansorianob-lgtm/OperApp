@@ -7,7 +7,7 @@ const nextConfig = {
         return [
             {
                 source: '/api/v1/mobile/login',
-                destination: '/api/public/login',
+                destination: '/api/hello_login',
             },
         ];
     },

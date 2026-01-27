@@ -62,6 +62,8 @@ async function runTests() {
     // 2. Test Rewrite Route
     await makeRequest('/api/v1/mobile/login', 'OPTIONS');
     await makeRequest('/api/v1/mobile/login', 'POST', JSON.stringify({ phone: '123', password: 'test' }));
+    // 3. Test Baseline Route
+    await makeRequest('/api/hello', 'GET');
 }
 
 runTests();
