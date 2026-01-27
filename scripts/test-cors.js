@@ -1,17 +1,17 @@
-// Configuration
+const https = require('https');
+
 const HOST = 'oper-app.vercel.app';
 const PORT = 443;
-const PATH = '/api/v1/mobile/login';
 
-function makeRequest(method, body = null) {
+function makeRequest(path, method, body = null) {
     return new Promise((resolve, reject) => {
         const options = {
             hostname: HOST,
             port: PORT,
-            path: PATH,
+            path: path,
             method: method,
             headers: {
-                'Origin': 'http://localhost:8081', // Simulate mobile app origin (or null)
+                'Origin': 'http://localhost:8081',
                 'Access-Control-Request-Method': 'POST',
                 'Access-Control-Request-Headers': 'content-type',
             }
@@ -22,15 +22,20 @@ function makeRequest(method, body = null) {
             options.headers['Content-Length'] = Buffer.byteLength(body);
         }
 
-        console.log(`\n--- Testing ${method} ---`);
-        const req = require('https').request(options, (res) => {
+        console.log(`\n--- Testing ${method} ${path} ---`);
+        const req = https.request(options, (res) => {
             console.log(`STATUS: ${res.statusCode}`);
-            console.log(`HEADERS:`, JSON.stringify(res.headers, null, 2));
+            // console.log(`HEADERS:`, JSON.stringify(res.headers, null, 2));
+            if (res.headers['access-control-allow-origin']) {
+                console.log("✅ CORS Headers Present");
+            } else {
+                console.log("❌ CORS Headers MISSING");
+            }
 
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
-                if (data) console.log(`BODY: ${data.substring(0, 200)}...`);
+                if (data && data.length < 500) console.log(`BODY: ${data}`);
                 resolve(res);
             });
         });
@@ -48,29 +53,15 @@ function makeRequest(method, body = null) {
 }
 
 async function runTests() {
-    try {
-        // 1. Test OPTIONS (Preflight)
-        const optionsRes = await makeRequest('OPTIONS');
+    console.log("Starting connectivity tests...");
 
-        if (optionsRes.headers['access-control-allow-origin'] || optionsRes.statusCode === 200) {
-            console.log("✅ OPTIONS test passed (CORS headers present/200 OK)");
-        } else {
-            console.log("❌ OPTIONS test failed (Missing CORS headers or non-200 status)");
-        }
+    // 1. Test Direct Public Route
+    await makeRequest('/api/public/login', 'OPTIONS');
+    await makeRequest('/api/public/login', 'POST', JSON.stringify({ phone: '123', password: 'test' }));
 
-        // 2. Test POST (Actual Login - invalid creds to just check connectivity)
-        const postBody = JSON.stringify({ phone: '1234567890', password: 'test' });
-        const postRes = await makeRequest('POST', postBody);
-
-        if (postRes.statusCode !== 405) {
-            console.log(`✅ POST test passed (Status ${postRes.statusCode} != 405)`);
-        } else {
-            console.log("❌ POST test failed (Still returning 405)");
-        }
-
-    } catch (e) {
-        console.error("Test execution failed:", e);
-    }
+    // 2. Test Rewrite Route
+    await makeRequest('/api/v1/mobile/login', 'OPTIONS');
+    await makeRequest('/api/v1/mobile/login', 'POST', JSON.stringify({ phone: '123', password: 'test' }));
 }
 
 runTests();
