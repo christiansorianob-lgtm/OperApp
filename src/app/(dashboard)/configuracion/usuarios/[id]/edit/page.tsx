@@ -30,7 +30,10 @@ export default async function EditUsuarioPage({ params }: { params: Promise<{ id
                     <CardTitle>Datos del Usuario: {usuario.nombre}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <form action={updateUsuario.bind(null, id)} className="space-y-4">
+                    <form action={async (formData) => {
+                        'use server'
+                        await updateUsuario(id, formData)
+                    }} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="nombre">Nombre Completo</Label>
                             <Input id="nombre" name="nombre" defaultValue={usuario.nombre} required />
