@@ -36,7 +36,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
         try {
             const message = `*Nueva Tarea Asignada*\n\n` +
                 `🔹 *Tipo:* ${task.tipo}\n` +
-                `📍 *Ubicación:* ${task.obra?.nombre || 'Sin obra'} ${task.frente ? `- ${task.frente.nombre}` : ''}\n` +
+                `📍 *Ubicación:* ${task.proyecto?.nombre || 'Sin Proyecto'}\n` +
                 `📅 *Fecha:* ${new Date(task.fechaProgramada).toLocaleDateString()}\n` +
                 `📝 *Prioridad:* ${task.prioridad || 'Normal'}\n` +
                 `📌 *Estado:* ${task.estado}\n\n` +
@@ -329,8 +329,8 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
 
                 {task.estado === 'EN_PROCESO' && (
                     <View style={{ marginBottom: 20 }}>
-                        {/* Timer or Status Indicator */}
-                        <TaskTimer startDate={task.updatedAt || task.createdAt} />
+                        {/* Timer or Status Indicator - Use Real Start Date if available, else update time */}
+                        <TaskTimer startDate={task.fechaInicioReal || task.updatedAt} />
                     </View>
                 )}
 
@@ -346,8 +346,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                     <View style={styles.row}>
                         <Feather name="map-pin" size={20} color="#6b7280" />
                         <View>
-                            <Text style={styles.infoText}>{task.obra?.nombre || 'Obra desconocida'}</Text>
-                            {task.frente && <Text style={[styles.infoText, { fontSize: 14, color: '#9ca3af' }]}>{task.frente.nombre}</Text>}
+                            <Text style={styles.infoText}>{task.proyecto?.nombre || 'Sin Proyecto'}</Text>
                         </View>
                     </View>
 
@@ -508,10 +507,14 @@ function TaskTimer({ startDate }: { startDate: string }) {
             const now = new Date().getTime();
             const diff = now - start;
 
-            if (diff >= 0) {
+            // If diff is unreasonably large (e.g. > 1 year) or negative, just show 'Initiated'
+            if (diff > 31536000000) {
+                setElapsed("Fecha inválida");
+            } else if (diff >= 0) {
                 const hours = Math.floor(diff / (1000 * 60 * 60));
                 const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                setElapsed(`${hours}h ${minutes}m`);
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000); // Optional: add seconds
+                setElapsed(`${hours}h ${minutes}m ${seconds}s`);
             }
         }, 1000);
 

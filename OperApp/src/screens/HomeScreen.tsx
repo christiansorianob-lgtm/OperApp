@@ -16,11 +16,11 @@ interface HomeScreenProps {
 interface Tarea {
     id: string;
     tipo: string;
-    obra: { nombre: string };
-    frente?: { nombre: string };
+    proyecto: { nombre: string }; // Fixed: Match backend schema
     fechaProgramada: string;
     estado: "PROGRAMADA" | "EN_PROCESO" | "EJECUTADA" | "CANCELADA";
     prioridad: string;
+    fechaInicioReal?: string;
 }
 
 export default function HomeScreen({ user, onLogout, onSelectTask }: HomeScreenProps) {
@@ -178,7 +178,7 @@ export default function HomeScreen({ user, onLogout, onSelectTask }: HomeScreenP
                 <View style={styles.locationContainer}>
                     <Feather name="map-pin" size={14} color="#6b7280" />
                     <Text style={styles.locationText}>
-                        {item.obra.nombre} {item.frente ? `- ${item.frente.nombre}` : ''}
+                        {item.proyecto?.nombre || "Sin Proyecto"}
                     </Text>
                 </View>
             </View>
@@ -250,8 +250,8 @@ export default function HomeScreen({ user, onLogout, onSelectTask }: HomeScreenP
         <View style={styles.container}>
             <View style={styles.header}>
                 <View>
-                    <Text style={styles.greeting}>Hola, {user.nombre.split(' ')[0]}</Text>
-                    <Text style={styles.role}>{user.cargo}</Text>
+                    <Text style={styles.greeting}>Hola, {(user.nombre || "Usuario").split(' ')[0]}</Text>
+                    <Text style={styles.role}>{user.cargo || ""}</Text>
                 </View>
                 <View style={styles.headerButtons}>
                     <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.iconButton}>
@@ -630,4 +630,3 @@ const styles = StyleSheet.create({
         color: '#16a34a',
     }
 });
-

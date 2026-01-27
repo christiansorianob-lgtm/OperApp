@@ -98,8 +98,81 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                     </Card>
                 </div>
 
-                {/* No Map for Proyecto anymore */}
+                {/* Tasks List */}
+                <div className="lg:col-span-2 space-y-6">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle>Actividades / Tareas</CardTitle>
+                            <Button size="sm" variant="outline" asChild>
+                                <Link href={`/tareas/new?clienteId=${cliente.id}&proyectoId=${proyecto.id}`}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Nueva
+                                </Link>
+                            </Button>
+                        </CardHeader>
+                        <CardContent>
+                            <TasksTableWrapper projetoId={proyecto.id} />
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
+    )
+}
+
+import { getTareas } from "@/app/actions/tareas"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
+async function TasksTableWrapper({ projetoId }: { projetoId: string }) {
+    const { data: tareas, error } = await getTareas({ frenteId: projetoId })
+
+    if (error) return <p className="text-destructive">{error}</p>
+
+    return (
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Tarea</TableHead>
+                    <TableHead>Responsable</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Acción</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {tareas?.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                            No hay actividades registradas en este proyecto.
+                        </TableCell>
+                    </TableRow>
+                ) : (
+                    tareas?.map((tarea) => (
+                        <TableRow key={tarea.id}>
+                            <TableCell>{new Date(tarea.fechaProgramada).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                                <div className="font-medium">{tarea.tipo}</div>
+                                <div className="text-xs text-muted-foreground">{tarea.codigo}</div>
+                            </TableCell>
+                            <TableCell>{tarea.responsable}</TableCell>
+                            <TableCell>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tarea.estado === 'PROGRAMADA' ? 'bg-blue-100 text-blue-800' :
+                                        tarea.estado === 'EN_PROCESO' ? 'bg-yellow-100 text-yellow-800' :
+                                            tarea.estado === 'EJECUTADA' ? 'bg-green-100 text-green-800' :
+                                                'bg-red-100 text-red-800'
+                                    }`}>
+                                    {tarea.estado.replace('_', ' ')}
+                                </span>
+                            </TableCell>
+                            <TableCell>
+                                <Link href={`/tareas/${tarea.id}/execute`} className="text-primary hover:underline text-sm">
+                                    Ver
+                                </Link>
+                            </TableCell>
+                        </TableRow>
+                    ))
+                )}
+            </TableBody>
+        </Table>
     )
 }
