@@ -2,7 +2,9 @@
 const nextConfig = {
     // Headers removed to handle CORS manually per route
     // async headers() { ... }
-    output: "standalone",
+    // output: "standalone", // Removed for Vercel compatibility
+    // rewrites removed to restore normal routing
+    /*
     async rewrites() {
         return [
             {
@@ -11,6 +13,7 @@ const nextConfig = {
             },
         ];
     },
+    */
 };
 
 export default nextConfig;

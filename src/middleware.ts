@@ -3,11 +3,16 @@ import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname
+    console.log(`[Middleware] Processing request: ${request.method} ${path}`);
+
 
     // 1. Handle CORS for API routes
     if (path.startsWith('/api')) {
+        console.log(`[Middleware] API route detected: ${path}`);
         // Handle Preflighted Requests
         if (request.method === 'OPTIONS') {
+            console.log(`[Middleware] Handling OPTIONS for: ${path}`);
+
             return new NextResponse(null, {
                 status: 200,
                 headers: {

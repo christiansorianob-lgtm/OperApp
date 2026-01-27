@@ -25,7 +25,6 @@ function makeRequest(path, method, body = null) {
         console.log(`\n--- Testing ${method} ${path} ---`);
         const req = https.request(options, (res) => {
             console.log(`STATUS: ${res.statusCode}`);
-            // console.log(`HEADERS:`, JSON.stringify(res.headers, null, 2));
             if (res.headers['access-control-allow-origin']) {
                 console.log("✅ CORS Headers Present");
             } else {
@@ -55,17 +54,13 @@ function makeRequest(path, method, body = null) {
 async function runTests() {
     console.log("Starting connectivity tests...");
 
-    // 1. Test Direct Public Route
-    await makeRequest('/api/public/login', 'OPTIONS');
-    await makeRequest('/api/public/login', 'POST', JSON.stringify({ phone: '123', password: 'test' }));
+    // 1. Test Hijacked Hello Route (Critical)
+    await makeRequest('/api/hello', 'OPTIONS');
+    await makeRequest('/api/hello', 'POST', JSON.stringify({ phone: '123', password: 'test' })); // Should get 401 (Credenciales incorrectas) or 200
+    await makeRequest('/api/hello', 'GET'); // Should get 200
 
-    // 2. Test Rewrite Route
-    await makeRequest('/api/v1/mobile/login', 'OPTIONS');
+    // 2. Test Rewrite Path (App uses this)
     await makeRequest('/api/v1/mobile/login', 'POST', JSON.stringify({ phone: '123', password: 'test' }));
-    // 4. Test Direct Hello Login
-    await makeRequest('/api/hello_login', 'OPTIONS');
-    await makeRequest('/api/hello_login', 'POST', JSON.stringify({ phone: '123', password: 'test' }));
-    await makeRequest('/api/hello_login', 'GET');
 }
 
 runTests();

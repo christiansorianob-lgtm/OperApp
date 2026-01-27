@@ -9,67 +9,23 @@ export async function GET() {
     return NextResponse.json({ message: "New Login API (public/login) is READY (DB Disabled)." }, { status: 200 });
 }
 
-// Helper for CORS Headers
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
 
-// Handle OPTIONS for CORS
-export async function OPTIONS() {
-    return NextResponse.json({}, { headers: corsHeaders });
-}
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
-        const { phone, password } = body;
-
-        console.log(`[Public Login] Attempt for phone: ${phone}`);
-
-        if (!phone || !password) {
-            return NextResponse.json(
-                { error: "Celular y contraseña requeridos" },
-                { status: 400, headers: corsHeaders }
-            );
-        }
-
-        // DB CHECK TEMPORARILY DISABLED
-        const responsable = await db.responsable.findFirst({
-            where: {
-                celular: { equals: phone.trim() },
-                password: { equals: password.trim() },
-                activo: true
-            },
-            include: { cargoRef: true }
-        });
-
-        if (!responsable) {
-            return NextResponse.json(
-                { error: "Credenciales incorrectas" },
-                { status: 401, headers: corsHeaders }
-            );
-        }
-
+        console.log("Login API POST Check");
         return NextResponse.json({
             success: true,
+            message: "Login API is REACHABLE",
             user: {
-                id: responsable.id,
-                nombre: responsable.nombre,
-                cargo: responsable.cargoRef?.nombre || "Sin Cargo",
-                celular: responsable.celular
+                id: "test-id",
+                nombre: "Usuario de Prueba",
+                cargo: "Operador",
+                celular: "3000000000"
             }
-        }, {
-            status: 200,
-            headers: corsHeaders
-        });
-
+        }, { status: 200 });
     } catch (error) {
-        console.error("Login Route Error:", error);
-        return NextResponse.json(
-            { error: "Error procesando la solicitud" },
-            { status: 500, headers: corsHeaders }
-        );
+        return NextResponse.json({ error: "Error testing route" }, { status: 500 });
     }
 }
+
