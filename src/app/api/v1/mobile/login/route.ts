@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+    console.log("Login API GET Check");
     return NextResponse.json({ message: "New Login API (public/login) is READY (DB Disabled)." }, { status: 200 });
 }
 
