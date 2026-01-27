@@ -3,6 +3,14 @@ const nextConfig = {
     // Headers removed to handle CORS manually per route
     // async headers() { ... }
     output: "standalone",
+    async rewrites() {
+        return [
+            {
+                source: '/api/v1/mobile/login',
+                destination: '/api/public/login',
+            },
+        ];
+    },
 };
 
 export default nextConfig;
