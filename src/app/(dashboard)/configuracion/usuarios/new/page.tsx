@@ -22,7 +22,10 @@ export default async function NewUsuarioPage() {
                     <CardTitle>Datos del Usuario</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <form action={createUsuario} className="space-y-4">
+                    <form action={async (formData) => {
+                        'use server'
+                        await createUsuario(formData)
+                    }} className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="nombre">Nombre Completo</Label>
                             <Input id="nombre" name="nombre" placeholder="Ej. Juan Admin" required />
