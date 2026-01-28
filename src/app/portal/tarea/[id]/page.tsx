@@ -28,6 +28,9 @@ export default async function TaskDetailPage(props: Props) {
             proyecto: true,
             trazabilidad: {
                 orderBy: { timestamp: 'asc' }
+            },
+            reportesFotograficos: {
+                orderBy: { createdAt: 'desc' }
             }
         }
     })
@@ -119,6 +122,50 @@ export default async function TaskDetailPage(props: Props) {
                             )}
                         </CardContent>
                     </Card>
+
+                    {/* Detailed Photo Reports (Portal View) */}
+                    {tarea.reportesFotograficos && tarea.reportesFotograficos.length > 0 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-xl flex items-center gap-2">
+                                    Reporte Fotográfico Detallado
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                                    {tarea.reportesFotograficos.map((report: any) => (
+                                        <div key={report.id} className="bg-slate-50 p-4 rounded-lg border flex flex-col gap-4">
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="space-y-2">
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-200 px-2 py-1 rounded w-fit">ANTES</span>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={report.fotoAntes}
+                                                        alt="Foto Antes"
+                                                        className="w-full aspect-[4/3] object-cover rounded-md border bg-white"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-200 px-2 py-1 rounded w-fit">DESPUÉS</span>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img
+                                                        src={report.fotoDespues}
+                                                        alt="Foto Después"
+                                                        className="w-full aspect-[4/3] object-cover rounded-md border bg-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                            {report.comentario && (
+                                                <div className="mt-auto bg-white p-3 rounded border text-sm text-slate-600 italic border-l-4 border-blue-500/30">
+                                                    "{report.comentario}"
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* GPS Traceability Map */}
                     <Card>

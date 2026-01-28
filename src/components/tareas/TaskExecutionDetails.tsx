@@ -137,8 +137,50 @@ export function TaskExecutionDetails({ tarea }: TaskExecutionDetailsProps) {
                         <div className="flex items-center justify-center h-32 bg-muted/20 rounded-lg border border-dashed">
                             <p className="text-muted-foreground italic flex items-center gap-2">
                                 <MapIcon className="w-4 h-4 opacity-50" />
-                                Esta actividad no requirió trazabilidad.
                             </p>
+                        </div>
+                    )}
+
+                    {/* Detailed Photo Reports (Before/After) */}
+                    {tarea.reportesFotograficos && tarea.reportesFotograficos.length > 0 && (
+                        <div className="space-y-3 mt-6 pt-6 border-t">
+                            <Label className="text-sm font-semibold text-foreground uppercase tracking-wider flex items-center gap-2">
+                                <FileImage className="w-4 h-4" />
+                                Reporte Fotográfico Detallado (Antes / Después)
+                            </Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {tarea.reportesFotograficos.map((report: any) => (
+                                    <div key={report.id} className="bg-card p-3 rounded-lg border shadow-sm flex flex-col gap-3">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1.5">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase bg-muted px-1.5 py-0.5 rounded w-fit">ANTES</span>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={report.fotoAntes}
+                                                    alt="Foto Antes"
+                                                    className="w-full aspect-[4/3] object-cover rounded-md border bg-muted cursor-pointer hover:opacity-90 transition-all"
+                                                    onClick={() => setSelectedImage(report.fotoAntes)}
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase bg-muted px-1.5 py-0.5 rounded w-fit">DESPUÉS</span>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={report.fotoDespues}
+                                                    alt="Foto Después"
+                                                    className="w-full aspect-[4/3] object-cover rounded-md border bg-muted cursor-pointer hover:opacity-90 transition-all"
+                                                    onClick={() => setSelectedImage(report.fotoDespues)}
+                                                />
+                                            </div>
+                                        </div>
+                                        {report.comentario && (
+                                            <div className="mt-auto bg-muted/50 p-2 rounded text-xs text-muted-foreground italic border-l-2 border-primary/30">
+                                                "{report.comentario}"
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </CardContent>

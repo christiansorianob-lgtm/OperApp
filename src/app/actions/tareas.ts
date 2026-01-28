@@ -62,6 +62,11 @@ export async function getTareaById(id: string) {
                         } as any
                     }
                 },
+                reportesFotograficos: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
+                },
                 trazabilidad: {
                     orderBy: {
                         timestamp: 'asc'

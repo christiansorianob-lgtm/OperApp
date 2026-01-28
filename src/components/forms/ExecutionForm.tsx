@@ -160,6 +160,52 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                 </CardContent>
             </Card>
 
+            {/* Display Detailed Photo Reports (Created by Mobile) */}
+            {
+                tarea.reportesFotograficos && tarea.reportesFotograficos.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                Reportes Fotográficos (Móvil)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {tarea.reportesFotograficos.map((report: any) => (
+                                    <div key={report.id} className="bg-muted/10 p-3 rounded-lg border shadow-sm">
+                                        <div className="grid grid-cols-2 gap-2 mb-2">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">ANTES</span>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={report.fotoAntes}
+                                                    alt="Antes"
+                                                    className="w-full aspect-[4/3] object-cover rounded border bg-muted"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-bold text-muted-foreground uppercase">DESPUÉS</span>
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                    src={report.fotoDespues}
+                                                    alt="Despues"
+                                                    className="w-full aspect-[4/3] object-cover rounded border bg-muted"
+                                                />
+                                            </div>
+                                        </div>
+                                        {report.comentario && (
+                                            <p className="text-xs text-muted-foreground italic truncate">
+                                                "{report.comentario}"
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
+
             <Card>
                 <CardHeader className="flex flex-row justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -285,6 +331,6 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                     Guardar Ejecución
                 </Button>
             </div>
-        </form>
+        </form >
     )
 }
