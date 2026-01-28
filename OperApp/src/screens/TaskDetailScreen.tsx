@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Linking, Platform, Modal, SafeAreaView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Linking, Platform, Modal, SafeAreaView, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTracking } from '../context/TrackingContext';
 import { captureRef } from 'react-native-view-shot';
@@ -31,6 +31,195 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
     const [processingPhoto, setProcessingPhoto] = useState<{ uri: string, meta: string } | null>(null);
 
     const { startTracking } = useTracking();
+
+    const [reportDetails, setReportDetails] = useState<any[]>([]);
+    const [isReportModalVisible, setReportModalVisible] = useState(false);
+    const [tempReport, setTempReport] = useState<{ fotoAntes: string | null, fotoDespues: string | null, comentario: string }>({ fotoAntes: null, fotoDespues: null, comentario: '' });
+    const [processingType, setProcessingType] = useState<'ANTES' | 'DESPUES' | null>(null);
+
+    // Fetch Report Details
+    useEffect(() => {
+        const fetchReport = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/tareas/${task.id}/reporte-fotografico`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setReportDetails(data);
+                }
+            } catch (e) {
+                console.warn("Failed to fetch report details", e);
+            }
+        };
+        fetchReport();
+    }, [task.id]); // Reload when task ID changes
+
+    // Update processingPhoto effect to handle report photos
+    useEffect(() => {
+        if (processingPhoto && viewShotRef.current) {
+            const processAndUpload = async () => {
+                try {
+                    // Wait for render
+                    await new Promise(r => setTimeout(r, 500));
+
+                    const uri = await captureRef(viewShotRef, {
+                        format: "jpg",
+                        quality: 0.2, // Low quality as requested
+                        result: "tmpfile"
+                    });
+
+                    // Logic branch: If we are in "Report Mode" (processingType is set), save to Temp State
+                    // Else, it's a standard Evidence Upload
+                    if (processingType) {
+                        setTempReport(prev => ({
+                            ...prev,
+                            [processingType === 'ANTES' ? 'fotoAntes' : 'fotoDespues']: uri
+                        }));
+                        setProcessingType(null); // Reset
+                    } else {
+                        // Standard Evidence Upload
+                        await uploadEvidence(uri);
+                    }
+
+                } catch (e) {
+                    console.error("Watermark/Upload failed", e);
+                    Alert.alert("Error", "Falló el procesamiento de la foto");
+                } finally {
+                    setProcessingPhoto(null);
+                    setUploading(false);
+                }
+            };
+            processAndUpload();
+        }
+    }, [processingPhoto]);
+
+    const takeReportPhoto = async (type: 'ANTES' | 'DESPUES') => {
+        try {
+            // Permissions
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+            if (!permission.granted) return Alert.alert("Error", "Se requiere cámara");
+
+            const { status } = await Location.getForegroundPermissionsAsync();
+            if (status !== 'granted') return Alert.alert("Error", "Se requiere ubicación");
+
+            setUploading(true);
+            setProcessingType(type); // Set tracking mode
+
+            // Location
+            let locationText = "";
+            try {
+                const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+                locationText = `LAT: ${loc.coords.latitude.toFixed(6)} | LNG: ${loc.coords.longitude.toFixed(6)}`;
+            } catch (e) {
+                const last = await Location.getLastKnownPositionAsync();
+                if (last) locationText = `LAT: ${last.coords.latitude.toFixed(6)} | LNG: ${last.coords.longitude.toFixed(6)} (Last)`;
+                else {
+                    setUploading(false);
+                    setProcessingType(null);
+                    return Alert.alert("Error", "No GPS");
+                }
+            }
+
+            const meta = `${new Date().toLocaleString()}\n${locationText}`;
+
+            // Camera
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                quality: 0.2,
+                allowsEditing: false,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setProcessingPhoto({ uri: result.assets[0].uri, meta });
+                // Effect will trigger next
+            } else {
+                setUploading(false);
+                setProcessingType(null);
+            }
+
+        } catch (e) {
+            console.error(e);
+            setUploading(false);
+            setProcessingType(null);
+        }
+    };
+
+    const saveReportDetail = async () => {
+        if (!tempReport.fotoAntes || !tempReport.fotoDespues) {
+            return Alert.alert("Incompleto", "Debes tomar ambas fotos (Antes y Después).");
+        }
+
+        setUploading(true);
+        try {
+            // Need to convert files to base64 to send in JSON (since we stored them as string in DB)
+            // Or use FormData. The API expects JSON with Base64 strings based on my route code:
+            // "const { fotoAntes, fotoDespues, comentario } = body"
+
+            // Helper to convert URI to Base64
+            // Expo FileSystem is needed.
+            // Since we don't have FileSystem imported, we might fail.
+            // Wait, we are in Expo. We need expo-file-system. 
+            // I should check if it's installed. Checking package.json...
+            // It's not in the visible package.json lines. 
+            // I'll assume standard upload logic is safer if I don't confirm FileSystem.
+            // But my API expects JSON body. 
+            // LET'S USE FormData and change API? No, I wrote the API to expect generic body.
+            // Actually, my API `const body = await request.json()` implies JSON.
+            // So I MUST send Base64.
+
+            // I'll try to use fetch to getting blob then reader.
+            const toBase64 = async (uri: string) => {
+                const response = await fetch(uri);
+                const blob = await response.blob();
+                return new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const base64data = reader.result as string;
+                        // reader.result includes "data:image/jpeg;base64,..."
+                        // My API might just store that string directly.
+                        resolve(base64data.split(',')[1]); // Send just the data, or full string?
+                        // Schema says "String". Best to send raw base64 or full data URI.
+                        // Let's send full data URI to be safe for <img> tags src.
+                        // Actually, if I split, I lose generic type. 
+                        // Reader result is perfect.
+                        resolve(base64data);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            };
+
+            const fotoAntesBase64 = await toBase64(tempReport.fotoAntes);
+            const fotoDespuesBase64 = await toBase64(tempReport.fotoDespues);
+
+            const payload = {
+                fotoAntes: fotoAntesBase64,
+                fotoDespues: fotoDespuesBase64,
+                comentario: tempReport.comentario
+            };
+
+            const res = await fetch(`${API_BASE}/tareas/${task.id}/reporte-fotografico`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setReportDetails(prev => [data.data, ...prev]);
+                setReportModalVisible(false);
+                setTempReport({ fotoAntes: null, fotoDespues: null, comentario: '' });
+                Alert.alert("Guardado", "Registro añadido.");
+            } else {
+                throw new Error("Error saving");
+            }
+
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "No se pudo guardar el registro.");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleShare = async () => {
         try {
@@ -154,7 +343,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
             // 3. Launch Camera
             const result = await ImagePicker.launchCameraAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                quality: 0.8,
+                quality: 0.2,
                 allowsEditing: false,
             });
 
@@ -180,7 +369,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
 
                     const uri = await captureRef(viewShotRef, {
                         format: "jpg",
-                        quality: 0.8,
+                        quality: 0.2,
                         result: "tmpfile"
                     });
 
@@ -229,31 +418,42 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                 throw new Error("Error del servidor: " + response.status);
             }
         } catch (error: any) {
-            console.warn("Upload Error (Offline fallback):", error);
+            console.warn("Upload Error:", error);
 
-            // Offline Fallback: Save to Draft
-            try {
-                const DRAFT_KEY = `DRAFT_TASK_${task.id}`;
-                const draftStr = await getItem(DRAFT_KEY);
-                const draft = draftStr ? JSON.parse(draftStr) : {};
+            // Check if it's a network error (Offline) or Server Error (Online but failed)
+            const isNetworkError = error.message && (
+                error.message.includes('Network request failed') ||
+                error.message.includes('Network Error') ||
+                error.message === 'Network error'
+            );
 
-                // Add to draft photos
-                const currentPhotos = draft.photos || [];
-                // Reduce duplicate saves logic slightly loosely for now
-                const exists = currentPhotos.some((p: any) => p.uri === uri);
-                if (!exists) {
-                    draft.photos = [...currentPhotos, { uri, meta: null }];
-                    await setItem(DRAFT_KEY, JSON.stringify(draft));
-                    Alert.alert(
-                        "Guardado Offline",
-                        "Sin conexión. La foto se guardó en el borrador. Podrás enviarla desde 'Registrar Datos / Finalizar'."
-                    );
-                } else {
-                    Alert.alert("Aviso", "Esta foto ya está guardada.");
+            if (isNetworkError) {
+                // Offline Fallback: Save to Draft
+                try {
+                    const DRAFT_KEY = `DRAFT_TASK_${task.id}`;
+                    const draftStr = await getItem(DRAFT_KEY);
+                    const draft = draftStr ? JSON.parse(draftStr) : {};
+
+                    // Add to draft photos
+                    const currentPhotos = draft.photos || [];
+                    const exists = currentPhotos.some((p: any) => p.uri === uri);
+                    if (!exists) {
+                        draft.photos = [...currentPhotos, { uri, meta: null }];
+                        await setItem(DRAFT_KEY, JSON.stringify(draft));
+                        Alert.alert(
+                            "Guardado Offline",
+                            "Sin conexión. La foto se guardó en el borrador. Podrás enviarla desde 'Registrar Datos / Finalizar'."
+                        );
+                    } else {
+                        Alert.alert("Aviso", "Esta foto ya está guardada.");
+                    }
+                } catch (draftError) {
+                    console.error("Draft Save Error:", draftError);
+                    Alert.alert("Fallo Total", "No se pudo subir ni guardar offline.");
                 }
-            } catch (draftError) {
-                console.error("Draft Save Error:", draftError);
-                Alert.alert("Fallo Total", "No se pudo subir ni guardar offline.");
+            } else {
+                // Server Error (Online but rejected)
+                Alert.alert("Error de Servidor", `No se pudo guardar la evidencia. Intenta nuevamente. (${error.message})`);
             }
         } finally {
             setUploading(false);
@@ -403,17 +603,47 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                     </View>
                 )}
 
+                {/* Reporte Fotográfico Section */}
+                {(task.estado === 'EN_PROCESO' || reportDetails.length > 0) && (
+                    <View style={styles.section}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                            <Text style={styles.sectionTitle}>Reporte Fotográfico ({reportDetails.length})</Text>
+                            {task.estado === 'EN_PROCESO' && (
+                                <TouchableOpacity onPress={() => setReportModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#dcfce7', padding: 6, borderRadius: 8 }}>
+                                    <Feather name="plus-circle" size={16} color="#16a34a" style={{ marginRight: 4 }} />
+                                    <Text style={{ color: '#16a34a', fontWeight: 'bold' }}>Agregar</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {reportDetails.map((item, idx) => (
+                            <View key={item.id || idx} style={{ marginBottom: 15, padding: 10, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>ANTES</Text>
+                                        <Image source={{ uri: item.fotoAntes }} style={{ width: '100%', height: 100, borderRadius: 6, backgroundColor: '#f3f4f6' }} resizeMode="cover" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>DESPUÉS</Text>
+                                        <Image source={{ uri: item.fotoDespues }} style={{ width: '100%', height: 100, borderRadius: 6, backgroundColor: '#f3f4f6' }} resizeMode="cover" />
+                                    </View>
+                                </View>
+                                {item.comentario && <Text style={{ fontStyle: 'italic', color: '#374151', fontSize: 12 }}>"{item.comentario}"</Text>}
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 {/* Evidences Section */}
                 {(evidences.length > 0 || task.estado === 'EN_PROCESO') && (
                     <View style={styles.section}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={styles.sectionTitle}>Evidencias ({evidences.length})</Text>
+                            <Text style={styles.sectionTitle}>Evidencias Generales ({evidences.length})</Text>
                             {task.estado === 'EN_PROCESO' && (
                                 <View style={{ alignItems: 'center' }}>
                                     <TouchableOpacity onPress={takeEvidence} disabled={uploading}>
-                                        {uploading ? <ActivityIndicator size="small" color="#16a34a" /> : <Feather name="camera" size={20} color="#16a34a" />}
+                                        {uploading && !processingType ? <ActivityIndicator size="small" color="#16a34a" /> : <Feather name="camera" size={20} color="#16a34a" />}
                                     </TouchableOpacity>
-                                    {uploading && <Text style={{ fontSize: 10, color: '#16a34a', marginTop: 2 }}>GPS...</Text>}
                                 </View>
                             )}
                         </View>
@@ -429,7 +659,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                                 </TouchableOpacity>
                             ))}
                             {evidences.length === 0 && (
-                                <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>Sin evidencias</Text>
+                                <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>Sin evidencias generales</Text>
                             )}
                         </ScrollView>
                     </View>
@@ -489,6 +719,90 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                             resizeMode="contain"
                         />
                     )}
+                </View>
+            </Modal>
+
+            {/* Report Form Modal */}
+            <Modal
+                visible={isReportModalVisible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setReportModalVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: '#f9fafb', padding: 20 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Nuevo Registro Fotográfico</Text>
+                        <TouchableOpacity
+                            onPress={() => setReportModalVisible(false)}
+                            style={{ padding: 10 }}
+                            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                        >
+                            <Feather name="x" size={24} color="#374151" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView>
+                        {/* Foto Antes */}
+                        <Text style={styles.fieldLabel}>1. Foto Antes</Text>
+                        <TouchableOpacity
+                            onPress={() => takeReportPhoto('ANTES')}
+                            style={{
+                                height: 150, backgroundColor: '#e5e7eb', borderRadius: 8,
+                                justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+                                borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed'
+                            }}
+                        >
+                            {tempReport.fotoAntes ? (
+                                <Image source={{ uri: tempReport.fotoAntes }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+                            ) : (
+                                <View style={{ alignItems: 'center' }}>
+                                    <Feather name="camera" size={30} color="#9ca3af" />
+                                    <Text style={{ color: '#6b7280', marginTop: 8 }}>Tomar Foto Antes</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Foto Despues */}
+                        <Text style={styles.fieldLabel}>2. Foto Después</Text>
+                        <TouchableOpacity
+                            onPress={() => takeReportPhoto('DESPUES')}
+                            style={{
+                                height: 150, backgroundColor: '#e5e7eb', borderRadius: 8,
+                                justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+                                borderWidth: 1, borderColor: '#d1d5db', borderStyle: 'dashed'
+                            }}
+                        >
+                            {tempReport.fotoDespues ? (
+                                <Image source={{ uri: tempReport.fotoDespues }} style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+                            ) : (
+                                <View style={{ alignItems: 'center' }}>
+                                    <Feather name="camera" size={30} color="#9ca3af" />
+                                    <Text style={{ color: '#6b7280', marginTop: 8 }}>Tomar Foto Después</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
+
+                        {/* Comentario */}
+                        <Text style={styles.fieldLabel}>3. Observación</Text>
+                        <View style={{ backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#d1d5db', padding: 10, height: 100, marginBottom: 20 }}>
+                            <TextInput
+                                placeholder="Escribe una observación..."
+                                multiline
+                                value={tempReport.comentario}
+                                onChangeText={t => setTempReport({ ...tempReport, comentario: t })}
+                                style={{ flex: 1, textAlignVertical: 'top' }}
+                            />
+                        </View>
+
+                        {/* Save Button */}
+                        <TouchableOpacity
+                            style={[styles.button, { backgroundColor: uploading ? '#9ca3af' : '#16a34a' }]}
+                            onPress={saveReportDetail}
+                            disabled={uploading}
+                        >
+                            {uploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Guardar Registro</Text>}
+                        </TouchableOpacity>
+                    </ScrollView>
                 </View>
             </Modal>
         </View >

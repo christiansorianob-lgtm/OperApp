@@ -5,6 +5,27 @@ import { insertPoint, initTrackingDB } from './db';
 
 const LOCATION_TASK_NAME = 'BACKGROUND_GPS_TRACKING';
 
+// State to track last saved point for smart filtering
+let lastSavedPoint: { latitude: number; longitude: number; timestamp: number } | null = null;
+
+// Helper: Haversine Distance in Meters
+function getDistanceFromLatLonInMeters(lat1: number, lon1: number, lat2: number, lon2: number) {
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(lat2 - lat1);
+    var dLon = deg2rad(lon2 - lon1);
+    var a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    var d = R * c; // Distance in km
+    return d * 1000; // Distance in meters
+}
+
+function deg2rad(deg: number) {
+    return deg * (Math.PI / 180);
+}
+
 // Define the background task
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     if (error) {
@@ -23,31 +44,55 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         }
 
         for (const location of locations) {
-            const { latitude, longitude, accuracy } = location.coords;
+            const { latitude, longitude, accuracy, speed, heading } = location.coords;
             const timestamp = location.timestamp;
 
-            // Filter: Accuracy < 100 meters (Relaxed to ensure data capture)
-            if (accuracy && accuracy < 100) {
-                // Get Battery Level
-                const batteryLevel = await Battery.getBatteryLevelAsync();
-
-                // Save to DB (insertPoint will fetch ActiveTaskId if not provided, but we can do it here too if needed. 
-                // db.ts logic handles it: let tid = point.taskId; if (!tid) tid = await getActiveTaskId();
-                // So we can just call insertPoint as is, respecting the interface)
-
-                await insertPoint({
-                    latitude,
-                    longitude,
-                    accuracy,
-                    batteryLevel,
-                    timestamp,
-                    // taskId will be auto-filled by db.ts from app_state
-                });
-
-                console.log(`[GPS] Point saved: ${latitude}, ${longitude} (Acc: ${accuracy}m)`);
-            } else {
-                console.log(`[GPS] Point discarded (Low Accuracy: ${accuracy}m): ${latitude}, ${longitude}`);
+            // 1. Accuracy Filter: discard if accuracy > 100m
+            if (accuracy && accuracy > 100) {
+                console.log(`[GPS] Skipped (Low Accuracy: ${accuracy}m)`);
+                continue;
             }
+
+            // 2. Smart Filtering (Stationary Filter)
+            // If speed is very low (< 0.5 m/s) AND distance from last saved point is small (< 20m),
+            // consider it "noise" or "still at same spot" and skip saving to save DB space.
+            if (lastSavedPoint) {
+                const dist = getDistanceFromLatLonInMeters(
+                    lastSavedPoint.latitude,
+                    lastSavedPoint.longitude,
+                    latitude,
+                    longitude
+                );
+
+                // If moving very slowly or stopped, and haven't moved far enough to justify a new point
+                const currentSpeed = speed || 0;
+                if (currentSpeed < 0.5 && dist < 20) {
+                    console.log(`[GPS] Skipped (Stationary: ${currentSpeed}m/s, Dist: ${dist.toFixed(1)}m)`);
+                    continue;
+                }
+            }
+
+            // 3. Save to DB
+            const batteryLevel = await Battery.getBatteryLevelAsync();
+
+            // Round to 6 decimals (~11cm precision) to save space/bandwidth
+            const cleanLat = Math.round(latitude * 1000000) / 1000000;
+            const cleanLng = Math.round(longitude * 1000000) / 1000000;
+
+            await insertPoint({
+                latitude: cleanLat,
+                longitude: cleanLng,
+                accuracy,
+                batteryLevel,
+                timestamp,
+                speed: speed || 0,
+                heading: heading || 0
+                // taskId will be auto-filled by db.ts from app_state
+            });
+
+            // Update state
+            lastSavedPoint = { latitude: cleanLat, longitude: cleanLng, timestamp };
+            console.log(`[GPS] Saved: ${cleanLat}, ${cleanLng} (Spd: ${speed?.toFixed(1)}m/s, Hdg: ${heading?.toFixed(0)})`);
         }
     }
 });
@@ -65,20 +110,25 @@ export const startBackgroundUpdate = async () => {
         return false;
     }
 
+    // Stop ensuring clean restart if it was running
+    const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    if (isRegistered) await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.High,
-        timeInterval: 2000,
-        distanceInterval: 5, // Filter: Move > 5 meters
-        activityType: Location.ActivityType.Other,
+        timeInterval: 2000,      // Check every 2 seconds
+        distanceInterval: 10,    // Only update if moved > 10 meters (Vehicle friendly)
+        activityType: Location.ActivityType.AutomotiveNavigation, // Critical for vehicle tracking on iOS
         foregroundService: {
             notificationTitle: "OperApp Tracking",
-            notificationBody: "Registrando trazabilidad de la tarea...",
+            notificationBody: "Registrando ruta (Vehículo/Pie)...",
             notificationColor: "#4CAF50",
         },
-        showsBackgroundLocationIndicator: true, // iOS indicator
-        pausesUpdatesAutomatically: false, // Prevent auto-pause
+        showsBackgroundLocationIndicator: true,
+        pausesUpdatesAutomatically: false,
     });
 
+    console.log('[GPS] Service started in Automotive Mode');
     return true;
 };
 
@@ -86,5 +136,6 @@ export const stopBackgroundUpdate = async () => {
     const isRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
     if (isRegistered) {
         await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+        console.log('[GPS] Service stopped');
     }
 };

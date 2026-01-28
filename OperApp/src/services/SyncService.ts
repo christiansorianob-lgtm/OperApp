@@ -35,6 +35,8 @@ export const syncPoints = async () => {
                     acc: p.accuracy,
                     batt: p.batteryLevel,
                     ts: new Date(p.timestamp).toISOString(),
+                    speed: p.speed,
+                    heading: p.heading,
                     taskId: p.taskId
                 }))
             };

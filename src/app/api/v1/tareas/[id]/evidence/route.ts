@@ -1,7 +1,5 @@
 import { db } from "@/lib/db"
 import { NextResponse } from "next/server"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
 
 export async function POST(
     request: Request,
@@ -16,24 +14,25 @@ export async function POST(
             return NextResponse.json({ error: "Missing task ID or file" }, { status: 400 })
         }
 
-        // 1. Save File to Disk
+        // 1. Convert File to Base64
         const buffer = Buffer.from(await file.arrayBuffer())
-        const fileName = `evidence_${id}_${Date.now()}_${file.name.replace(/\s/g, '_')}`
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "tareas")
+        const base64Data = buffer.toString('base64')
+        const mimeType = file.type || 'image/jpeg'
 
-        try {
-            await mkdir(uploadDir, { recursive: true })
-        } catch (e) {
-            // Ignore if exists
-        }
+        // 2. Save to DB (Evidencia Table)
+        const evidence = await db.evidencia.create({
+            data: {
+                tipo: mimeType,
+                datos: base64Data,
+                tareaId: id
+            }
+        })
 
-        const filePath = path.join(uploadDir, fileName)
-        await writeFile(filePath, buffer)
+        // 3. Generate "Virtual" URL
+        // compatible with existing logic that expects a URL string in the Tarea.evidencias field
+        const virtualUrl = `/api/v1/evidence/${evidence.id}`
 
-        const fileUrl = `/uploads/tareas/${fileName}`
-
-        // 2. Update Task in DB (Append URL)
-        // We need to read first to append, as Prisma basic update doesn't support append easily for strings in all DBs
+        // 4. Append URL to Tarea.evidencias
         const currentTask = await db.tarea.findUnique({
             where: { id },
             select: { evidencias: true }
@@ -44,15 +43,14 @@ export async function POST(
         }
 
         const currentEvidence = currentTask.evidencias || ""
-        // Use newline as separator
-        const newEvidence = currentEvidence ? `${currentEvidence}\n${fileUrl}` : fileUrl
+        const newEvidence = currentEvidence ? `${currentEvidence}\n${virtualUrl}` : virtualUrl
 
         await db.tarea.update({
             where: { id },
             data: { evidencias: newEvidence }
         })
 
-        return NextResponse.json({ success: true, url: fileUrl })
+        return NextResponse.json({ success: true, url: virtualUrl })
 
     } catch (error) {
         console.error("Upload Error:", error)

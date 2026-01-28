@@ -109,10 +109,14 @@ model Tarea {
   estado              EstadoTarea @default(PROGRAMADA)
   prioridad           PrioridadTarea @default(MEDIA)
   evidencias          String?  
+  evidenciasDb        Evidencia[]
+  reportesFotograficos DetalleFotografico[]
   requiereTrazabilidad Boolean @default(false)
   observaciones       String?  @db.Text
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+
+
 
   proyecto            Proyecto? @relation(fields: [proyectoId], references: [id])
   cliente             Cliente?  @relation(fields: [clienteId], references: [id])
@@ -132,6 +136,8 @@ model Trazabilidad {
   lng       Float
   accuracy  Float?
   battery   Float?
+  speed     Float?
+  heading   Float?
   timestamp DateTime
   createdAt DateTime @default(now())
 
@@ -371,4 +377,23 @@ model Municipio {
   nombre          String
   departamentoId  String
   departamento    Departamento @relation(fields: [departamentoId], references: [id])
+}
+
+model Evidencia {
+  id        String   @id @default(cuid())
+  datos     String
+  tipo      String
+  tareaId   String
+  tarea     Tarea    @relation(fields: [tareaId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model DetalleFotografico {
+  id          String   @id @default(cuid())
+  tareaId     String
+  tarea       Tarea    @relation(fields: [tareaId], references: [id])
+  fotoAntes   String   // Base64
+  fotoDespues String   // Base64
+  comentario  String?  @db.Text
+  createdAt   DateTime @default(now())
 }

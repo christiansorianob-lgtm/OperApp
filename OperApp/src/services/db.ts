@@ -9,6 +9,8 @@ export interface TrackingPoint {
     timestamp: number;
     taskId?: string;
     synced: number; // 0 = false, 1 = true
+    speed?: number;
+    heading?: number;
 }
 
 let db: SQLite.SQLiteDatabase | null = null;
@@ -36,13 +38,28 @@ export const initTrackingDB = async () => {
       batteryLevel REAL,
       timestamp INTEGER NOT NULL,
       taskId TEXT,
-      synced INTEGER DEFAULT 0
+      synced INTEGER DEFAULT 0,
+      speed REAL,
+      heading REAL
     );
     CREATE TABLE IF NOT EXISTS app_state (
       key TEXT PRIMARY KEY,
       value TEXT
     );
   `);
+
+    // MIGRATION LOGIC: Check if 'speed' column exists, if not add it
+    try {
+        const tableInfo = await database.getAllAsync<{ name: string }>('PRAGMA table_info(tracking_points_v2)');
+        const hasSpeed = tableInfo.some(col => col.name === 'speed');
+        if (!hasSpeed) {
+            console.log('[DB] Migrating: Adding speed and heading columns...');
+            await database.execAsync('ALTER TABLE tracking_points_v2 ADD COLUMN speed REAL');
+            await database.execAsync('ALTER TABLE tracking_points_v2 ADD COLUMN heading REAL');
+        }
+    } catch (e) {
+        console.warn('[DB] Migration check failed (optimistic ignore):', e);
+    }
 
     // Ensure this is run separately to avoid migration issues on existing DBs
     await database.execAsync(`
@@ -172,13 +189,15 @@ export const insertPoint = async (point: Omit<TrackingPoint, 'id' | 'synced'> & 
     // Assuming fresh install or re-install for this feature.
 
     await database.runAsync(
-        'INSERT INTO tracking_points_v2 (latitude, longitude, accuracy, batteryLevel, timestamp, taskId) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO tracking_points_v2 (latitude, longitude, accuracy, batteryLevel, timestamp, taskId, speed, heading) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         point.latitude,
         point.longitude,
         point.accuracy,
         point.batteryLevel,
         point.timestamp,
-        tid || null
+        tid || null,
+        point.speed || 0,
+        point.heading || 0
     );
 };
 

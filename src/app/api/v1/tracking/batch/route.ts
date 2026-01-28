@@ -49,6 +49,9 @@ export async function POST(request: Request) {
                             lng: Number(p.lng), // Ensure number
                             accuracy: p.acc ? Number(p.acc) : null,
                             battery: p.batt ? Number(p.batt) : null,
+                            battery: p.batt ? Number(p.batt) : null,
+                            speed: p.speed ? Number(p.speed) : null,
+                            heading: p.heading ? Number(p.heading) : null,
                             timestamp: new Date(p.ts),
                         }))
                     });
