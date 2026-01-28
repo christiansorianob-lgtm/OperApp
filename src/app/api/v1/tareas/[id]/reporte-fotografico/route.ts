@@ -2,6 +2,7 @@ import { db } from "@/lib/db"
 import { NextResponse } from "next/server"
 
 // POST: Agregar un nuevo registro fotográfico (Antes/Después)
+export const dynamic = 'force-dynamic'
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
