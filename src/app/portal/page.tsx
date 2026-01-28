@@ -1,4 +1,4 @@
-import { getClientSession } from "@/app/actions/auth-client"
+import { getAdminSession } from "@/app/actions/auth"
 import { db } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,13 +9,23 @@ import Link from "next/link"
 export const dynamic = 'force-dynamic'
 
 export default async function PortalDashboard() {
-    const session = await getClientSession()
-    if (!session) return null // Handled by layout
+    const session = await getAdminSession()
+    if (!session || session.role !== 'CLIENTE') return null // Handled by layout
 
-    // Fetch Client's Projects
+    // Fetch Client's Projects using the linked clienteId
+    // If user has no client linked (old data?), return empty or handle error
+    if (!session.clienteId) {
+        return (
+            <div className="p-10 text-center">
+                <h3 className="text-lg font-bold text-red-600">Cuenta desvinculada</h3>
+                <p>Su usuario no está asociado a ningún cliente válido. Contacte a soporte.</p>
+            </div>
+        )
+    }
+
     const projects = await db.proyecto.findMany({
         where: {
-            clienteId: session.id,
+            clienteId: session.clienteId,
             estado: { not: 'CANCELADO' }
         },
         include: {

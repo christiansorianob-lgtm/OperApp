@@ -5,12 +5,15 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 
 import { getProyectoById, updateProyecto } from "@/app/actions/proyectos"
+import { getDepartamentos, getMunicipios } from "@/app/actions/locations"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Save, Loader2, Map as MapIcon, RotateCcw, Trash2, Crosshair, ClipboardList, Plus } from "lucide-react"
 import dynamic from "next/dynamic"
+import { DatePicker } from "@/components/ui/DatePicker"
 import { Combobox } from "@/components/ui/combobox"
 
 // Dynamic Map import
@@ -29,7 +32,8 @@ function EditProyectoForm() {
     const [loading, setLoading] = useState(true)
 
     // Catalog State
-
+    const [departamentos, setDepartamentos] = useState<any[]>([])
+    const [municipios, setMunicipios] = useState<any[]>([])
 
     // Form State
     const [clienteId, setClienteId] = useState("")
@@ -41,52 +45,69 @@ function EditProyectoForm() {
     // Form Fields
     const [nombre, setNombre] = useState("")
     const [codigo, setCodigo] = useState("")
-    // const [areaHa, setAreaHa] = useState("") // Schema Proyecto does not have area
+    const [descripcion, setDescripcion] = useState("")
     const [observaciones, setObservaciones] = useState("")
 
-    // Map State
-    const [showMap, setShowMap] = useState(false)
-    const [lat, setLat] = useState("")
-    const [lng, setLng] = useState("")
-    const mapRef = useRef<any>(null)
-    const [drawingMode, setDrawingMode] = useState(false)
-    const [polygonPoints, setPolygonPoints] = useState<any[]>([])
+    // Location Fields
+    const [selectedDepartamentoId, setSelectedDepartamentoId] = useState("")
+    const [selectedMunicipioId, setSelectedMunicipioId] = useState("")
+    const [direccion, setDireccion] = useState("")
 
-    // Map Overlays
-    const [activeRefPolygon, setActiveRefPolygon] = useState<any[]>([])
-    const [activeOtherPolygons, setActiveOtherPolygons] = useState<any[]>([])
+    // Date Fields
+    const [fechaInicio, setFechaInicio] = useState<Date | undefined>(undefined)
 
     useEffect(() => {
         async function load() {
             try {
+                // 1. Load Catalogs & Project in parallel
+                const [resDept, resProyecto] = await Promise.all([
+                    getDepartamentos(),
+                    getProyectoById(id)
+                ])
 
-                // 2. Load Proyecto Data
-                const resProyecto = await getProyectoById(id)
+                const depts = resDept.data || []
+                setDepartamentos(depts)
+
                 if (resProyecto.error || !resProyecto.data) {
                     throw new Error(resProyecto.error || "Proyecto no encontrado")
                 }
 
                 const proyecto = resProyecto.data
                 setClienteId(proyecto.clienteId)
-                setClienteName(proyecto.cliente.nombre) // Display only
+                setClienteName(proyecto.cliente.nombre)
                 setNombre(proyecto.nombre)
                 setCodigo(proyecto.codigo || "")
-                // setAreaHa(proyecto.areaHa.toString()) // Removed from schema
-
+                setDescripcion(proyecto.descripcion || "")
                 setObservaciones(proyecto.observaciones || "")
+                setDireccion(proyecto.direccion || "")
 
-                // Geo - Not in schema but maybe kept for future? Or I should comment out.
-                // If I remove them from UI, I lose map editing features.
-                // But updateProyecto also doesn't support them in my analysis of `src/app/actions/proyectos.ts`.
-                // Checking `proyectos.ts`: `createProyecto` and `updateProyecto` do NOT handle lat/lng/area.
-                // So I should disable/hide the map features or leave them as dead UI for now to avoid large refactor validation.
-                // I will Comment out the state setting to avoid errors if fields missing.
-                /*
-                if (frente.latitud) setLat(frente.latitud.toString())
-                if (frente.longitud) setLng(frente.longitud.toString())
-                if (frente.poligono) ...
-                */
-                // Since the action doesn't save them, there is no point showing them. I will hide the map card or comment it out.
+                if (proyecto.fechaInicio) {
+                    setFechaInicio(new Date(proyecto.fechaInicio))
+                } else {
+                    setFechaInicio(new Date())
+                }
+
+                // Pre-fill Location
+                // Find Department ID by Name
+                if (proyecto.departamento) {
+                    const foundDept = depts.find((d: any) => d.nombre === proyecto.departamento)
+                    if (foundDept) {
+                        setSelectedDepartamentoId(foundDept.id)
+
+                        // Load Municipios for this Dept
+                        const resMuni = await getMunicipios(foundDept.id)
+                        const munis = resMuni.data || []
+                        setMunicipios(munis)
+
+                        // Find Municipio ID by Name
+                        if (proyecto.municipio) {
+                            const foundMuni = munis.find((m: any) => m.nombre === proyecto.municipio)
+                            if (foundMuni) {
+                                setSelectedMunicipioId(foundMuni.id)
+                            }
+                        }
+                    }
+                }
 
             } catch (e: any) {
                 console.error(e)
@@ -99,6 +120,18 @@ function EditProyectoForm() {
         load()
     }, [id])
 
+    const handleDepartamentoSelect = async (id: string) => {
+        setSelectedDepartamentoId(id)
+        setSelectedMunicipioId("")
+        setMunicipios([])
+
+        if (id) {
+            const res = await getMunicipios(id)
+            if (res.data) {
+                setMunicipios(res.data)
+            }
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -108,13 +141,18 @@ function EditProyectoForm() {
         try {
             const formData = new FormData()
             formData.append('nombre', nombre)
-            // formData.append('areaHa', areaHa)
+            formData.append('descripcion', descripcion)
             formData.append('observaciones', observaciones)
 
-            // Geo fields not supported by schema/action currently
-            // if (lat) formData.append('latitud', lat)
-            // if (lng) formData.append('longitud', lng)
-            // if (polygonPoints.length > 0) formData.append('poligono', JSON.stringify(polygonPoints))
+            // Location Names
+            const depName = departamentos.find(d => d.id === selectedDepartamentoId)?.nombre || ""
+            const munName = municipios.find(m => m.id === selectedMunicipioId)?.nombre || ""
+
+            formData.append('departamento', depName)
+            formData.append('municipio', munName)
+            formData.append('direccion', direccion)
+
+            if (fechaInicio) formData.append('fechaInicio', fechaInicio.toISOString())
 
             const res = await updateProyecto(id, formData)
 
@@ -134,7 +172,15 @@ function EditProyectoForm() {
         }
     }
 
+    const departamentoOptions = useMemo(() => departamentos.map(d => ({
+        value: d.id,
+        label: d.nombre
+    })), [departamentos])
 
+    const municipioOptions = useMemo(() => municipios.map(m => ({
+        value: m.id,
+        label: m.nombre
+    })), [municipios])
 
     if (loading) return <div className="flex justify-center p-8"><Loader2 className="w-6 h-6 animate-spin" /></div>
 
@@ -150,22 +196,7 @@ function EditProyectoForm() {
                     <h2 className="text-2xl font-bold tracking-tight text-primary">Editar Proyecto</h2>
                     <p className="text-muted-foreground">{nombre} ({codigo}) - {clienteName}</p>
                 </div>
-                <div className="ml-auto">
-                    <div className="flex gap-2">
-                        <Button variant="outline" asChild>
-                            <Link href={`/tareas?proyectoId=${id}`}>
-                                <ClipboardList className="mr-2 h-4 w-4" />
-                                Ver Tareas
-                            </Link>
-                        </Button>
-                        <Button asChild>
-                            <Link href={`/tareas/new?clienteId=${clienteId}&proyectoId=${id}`}>
-                                <Plus className="mr-2 h-4 w-4" />
-                                Nueva Tarea
-                            </Link>
-                        </Button>
-                    </div>
-                </div>
+                {/* Actions removed for simplicity as requested/not needed here */}
             </div>
 
             {/* ERROR MODAL */}
@@ -186,49 +217,112 @@ function EditProyectoForm() {
                 </div>
             )}
 
-            {/* <div className="fixed inset-0 z-[100] bg-background flex flex-col"> ... Map Modal Removed ... </div> */}
-
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Map Card Removed */}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card>
-                        <CardHeader><CardTitle>Información Básica</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="codigo">Código Proyecto</Label>
-                                <Input
-                                    id="codigo"
-                                    value={codigo}
-                                    readOnly
-                                    className="bg-muted text-muted-foreground cursor-not-allowed"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="nombre">Nombre Proyecto</Label>
-                                <Input
-                                    id="nombre"
-                                    value={nombre}
-                                    onChange={e => setNombre(e.target.value)}
-                                    placeholder="Ej: Proyecto Norte"
-                                    required
-                                />
-                            </div>
-                            {/* Area Input Removed */}
-                        </CardContent>
-                    </Card>
-                </div>
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader><CardTitle>Información Básica</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="codigo">Código Proyecto</Label>
+                                    <Input
+                                        id="codigo"
+                                        value={codigo}
+                                        readOnly
+                                        className="bg-muted text-muted-foreground cursor-not-allowed"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="nombre">Nombre Proyecto</Label>
+                                    <Input
+                                        id="nombre"
+                                        value={nombre}
+                                        onChange={e => setNombre(e.target.value)}
+                                        placeholder="Ej: Proyecto Norte"
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="descripcion">Descripción</Label>
+                                    <Textarea
+                                        id="descripcion"
+                                        value={descripcion}
+                                        onChange={e => setDescripcion(e.target.value)}
+                                        placeholder="Descripción breve..."
+                                        className="resize-none"
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
 
-                <Card>
-                    <CardHeader><CardTitle>Observaciones</CardTitle></CardHeader>
-                    <CardContent>
-                        <Input
-                            value={observaciones}
-                            onChange={e => setObservaciones(e.target.value)}
-                            placeholder="Notas adicionales..."
-                        />
-                    </CardContent>
-                </Card>
+                        <Card>
+                            <CardHeader><CardTitle>Fechas</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Fecha Inicio</Label>
+                                    <DatePicker date={fechaInicio} setDate={setFechaInicio} />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader><CardTitle>Ubicación</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Departamento</Label>
+                                        <Combobox
+                                            options={departamentoOptions}
+                                            value={selectedDepartamentoId}
+                                            onSelect={handleDepartamentoSelect}
+                                            placeholder="Seleccione..."
+                                            searchPlaceholder="Buscar..."
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Municipio</Label>
+                                        <Combobox
+                                            options={municipioOptions}
+                                            value={selectedMunicipioId}
+                                            onSelect={setSelectedMunicipioId}
+                                            placeholder="Seleccione..."
+                                            searchPlaceholder="Buscar..."
+                                            emptyText={selectedDepartamentoId ? "No encontrado" : "Seleccione depto"}
+                                            disabled={!selectedDepartamentoId}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="direccion">Dirección / Punto Referencia</Label>
+                                    <Input
+                                        id="direccion"
+                                        value={direccion}
+                                        onChange={e => setDireccion(e.target.value)}
+                                        placeholder="Ej: Km 5 Vía La Calera"
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader><CardTitle>Detalles Adicionales</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="observaciones">Observaciones</Label>
+                                    <Textarea
+                                        id="observaciones"
+                                        value={observaciones}
+                                        onChange={e => setObservaciones(e.target.value)}
+                                        placeholder="Notas internas..."
+                                    />
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
 
                 <div className="pt-4 flex justify-end gap-3">
                     <Button variant="outline" type="button" asChild>

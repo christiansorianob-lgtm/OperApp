@@ -80,18 +80,46 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                                     </Link>
                                 </span>
                             </div>
-                            <div className="flex items-center justify-between border-b pb-2">
-                                <span className="text-muted-foreground flex items-center gap-2">
-                                    <Calendar className="w-4 h-4" /> Inicio
-                                </span>
-                                <span className="font-medium">
-                                    {proyecto.createdAt ? new Date(proyecto.createdAt).toLocaleDateString() : 'N/A'}
-                                </span>
+
+                            <div>
+                                <h4 className="text-sm font-medium text-muted-foreground mb-1">Descripción</h4>
+                                <p className="text-sm">{proyecto.descripcion || "Sin descripción disponible."}</p>
                             </div>
+
+                            <div>
+                                <h4 className="text-sm font-medium text-muted-foreground mb-1">Ubicación</h4>
+                                <div className="text-sm space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">Departamento:</span>
+                                        {proyecto.departamento || "N/A"}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-medium">Municipio:</span>
+                                        {proyecto.municipio || "N/A"}
+                                    </div>
+                                    {proyecto.direccion && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium">Dirección:</span>
+                                            {proyecto.direccion}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="text-sm font-medium text-muted-foreground mb-1">Fecha Inicio</h4>
+                                <div className="flex items-center gap-2 text-sm">
+                                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                                    {proyecto.fechaInicio ? new Date(proyecto.fechaInicio).toLocaleDateString('es-ES', { dateStyle: 'long' }) : "No definida"}
+                                </div>
+                            </div>
+
                             {proyecto.observaciones && (
-                                <div className="pt-2">
-                                    <span className="text-muted-foreground block mb-1 text-sm">Observaciones:</span>
-                                    <p className="text-sm bg-muted p-2 rounded">{proyecto.observaciones}</p>
+                                <div>
+                                    <h4 className="text-sm font-medium text-muted-foreground mb-1">Observaciones</h4>
+                                    <p className="text-sm italic text-muted-foreground bg-muted p-2 rounded-md">
+                                        {proyecto.observaciones}
+                                    </p>
                                 </div>
                             )}
                         </CardContent>
@@ -157,9 +185,9 @@ async function TasksTableWrapper({ projetoId }: { projetoId: string }) {
                             <TableCell>{tarea.responsable}</TableCell>
                             <TableCell>
                                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${tarea.estado === 'PROGRAMADA' ? 'bg-blue-100 text-blue-800' :
-                                        tarea.estado === 'EN_PROCESO' ? 'bg-yellow-100 text-yellow-800' :
-                                            tarea.estado === 'EJECUTADA' ? 'bg-green-100 text-green-800' :
-                                                'bg-red-100 text-red-800'
+                                    tarea.estado === 'EN_PROCESO' ? 'bg-yellow-100 text-yellow-800' :
+                                        tarea.estado === 'EJECUTADA' ? 'bg-green-100 text-green-800' :
+                                            'bg-red-100 text-red-800'
                                     }`}>
                                     {tarea.estado.replace('_', ' ')}
                                 </span>

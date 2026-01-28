@@ -1,6 +1,6 @@
 'use server'
 
-import { createClienteInDb, findLastCliente, getAllClientes } from "@/services/clientes"
+import { createClienteInDb, findLastCliente, getAllClientes, updateClienteInDb } from "@/services/clientes"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 
@@ -58,5 +58,39 @@ export async function createCliente(formData: FormData) {
 
     revalidatePath('/clientes')
     // redirect('/clientes') // Let client handle redirect to avoid NEXT_REDIRECT issues in try-catch
+    return { success: true }
+}
+
+export async function updateCliente(id: string, formData: FormData) {
+    const nombre = formData.get("nombre") as string
+    const direccion = formData.get("direccion") as string
+    const responsable = formData.get("responsable") as string
+    const telefono = formData.get("telefono") as string
+    const nit = formData.get("nit") as string
+    const email = formData.get("email") as string
+    const observaciones = formData.get("observaciones") as string
+
+    if (!nombre) {
+        return { error: "El nombre es obligatorio." }
+    }
+
+    try {
+        await updateClienteInDb(id, {
+            nombre,
+            direccion,
+            responsable,
+            telefono,
+            nit,
+            email,
+            observaciones
+        })
+
+    } catch (error: any) {
+        console.error("Failed to update cliente:", error)
+        return { error: `Error: ${error.message}` }
+    }
+
+    revalidatePath('/clientes')
+    revalidatePath(`/clientes/${id}`)
     return { success: true }
 }

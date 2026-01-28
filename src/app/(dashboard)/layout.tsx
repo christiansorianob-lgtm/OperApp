@@ -7,7 +7,12 @@ export default async function DashboardLayout({
     children: React.ReactNode;
 }>) {
     const session = await getAdminSession()
-    console.log("DashboardLayout Session:", session)
+
+    // Security Redirect: Clients should NOT see the dashboard
+    if (session && session.role === 'CLIENTE') {
+        const { redirect } = await import("next/navigation")
+        redirect("/portal")
+    }
 
     return (
         <AppLayout session={session}>

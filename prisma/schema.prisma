@@ -59,7 +59,6 @@ model Proyecto {
   direccion       String?  // Dirección puntual de la obra
 
   fechaInicio     DateTime?
-  fechaFinEstimada DateTime?
   
   estado          EstadoProyecto @default(EN_EJECUCION)
   observaciones   String?  @db.Text

@@ -4,6 +4,14 @@ export async function createClienteInDb(data: any) {
     return await db.cliente.create({
         data
     })
+
+}
+
+export async function updateClienteInDb(id: string, data: any) {
+    return await db.cliente.update({
+        where: { id },
+        data
+    })
 }
 
 export async function findLastCliente() {

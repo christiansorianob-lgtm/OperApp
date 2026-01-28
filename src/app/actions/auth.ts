@@ -36,7 +36,8 @@ export async function loginAdmin(formData: FormData) {
             id: user.id,
             nombre: user.nombre,
             email: user.email,
-            role: user.perfil // ADMINISTRADOR or CLIENTE
+            role: user.perfil, // ADMINISTRADOR or CLIENTE
+            clienteId: user.clienteId // Null for admins, set for clients
         })
 
         const cookieStore = await cookies()
@@ -47,7 +48,7 @@ export async function loginAdmin(formData: FormData) {
             path: '/'
         })
 
-        return { success: true }
+        return { success: true, role: user.perfil }
 
     } catch (error) {
         console.error("Login Admin Error:", error)

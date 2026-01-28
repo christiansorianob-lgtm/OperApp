@@ -26,7 +26,12 @@ export default function LoginPage() {
             setLoading(false)
         } else {
             // Success
-            router.push("/") // Redirect to Dashboard
+            // Success
+            if (res.role === 'CLIENTE') {
+                router.push("/portal")
+            } else {
+                router.push("/") // Redirect to Dashboard
+            }
             router.refresh()
         }
     }

@@ -69,7 +69,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                     onPress: async () => {
                         setLoading(true);
                         try {
-                            const response = await fetch(`${API_BASE}/${task.id}`, {
+                            const response = await fetch(`${API_BASE}/tareas/${task.id}`, {
                                 method: 'PUT',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -209,7 +209,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
             // @ts-ignore
             formData.append('file', { uri, name: filename, type });
 
-            const response = await fetch(`${API_BASE}/${task.id}/evidence`, {
+            const response = await fetch(`${API_BASE}/tareas/${task.id}/evidence`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'multipart/form-data',

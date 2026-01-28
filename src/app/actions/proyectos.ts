@@ -23,8 +23,18 @@ export async function createProyecto(formData: FormData) {
     const clienteId = formData.get("clienteId") as string
     const nombre = formData.get("nombre") as string
     const codigo = formData.get("codigo") as string
-    // const area = parseFloat(formData.get("areaHa") as string) // Project schema does NOT have area.
+    const descripcion = formData.get("descripcion") as string
     const observaciones = formData.get("observaciones") as string
+
+    // Ubicación
+    const departamento = formData.get("departamento") as string
+    const municipio = formData.get("municipio") as string
+    const direccion = formData.get("direccion") as string
+
+    // Fechas
+    const fechaInicioStr = formData.get("fechaInicio") as string
+
+    const fechaInicio = fechaInicioStr ? new Date(fechaInicioStr) : null
 
     if (!clienteId || !nombre) {
         return { error: "Campos obligatorios faltantes." }
@@ -43,9 +53,13 @@ export async function createProyecto(formData: FormData) {
                 clienteId,
                 codigo: finalCodigo,
                 nombre,
-                // area, -> Not in schema
+                descripcion,
+                departamento,
+                municipio,
+                direccion,
+                fechaInicio,
                 observaciones,
-                estado: 'EN_EJECUCION' // previously ACTIVO, now EN_EJECUCION default
+                estado: 'EN_EJECUCION'
             }
         })
     } catch (error) {
@@ -75,8 +89,17 @@ export async function getProyectoById(id: string) {
 
 export async function updateProyecto(id: string, formData: FormData) {
     const nombre = formData.get("nombre") as string
-    // const area = parseFloat(formData.get("areaHa") as string)
+    const descripcion = formData.get("descripcion") as string
     const observaciones = formData.get("observaciones") as string
+
+    // Ubicación
+    const departamento = formData.get("departamento") as string
+    const municipio = formData.get("municipio") as string
+    const direccion = formData.get("direccion") as string
+
+    // Fechas
+    const fechaInicioStr = formData.get("fechaInicio") as string
+    const fechaInicio = fechaInicioStr ? new Date(fechaInicioStr) : null
 
     if (!nombre) {
         return { error: "Campos obligatorios faltantes." }
@@ -87,6 +110,11 @@ export async function updateProyecto(id: string, formData: FormData) {
             where: { id },
             data: {
                 nombre,
+                descripcion,
+                departamento,
+                municipio,
+                direccion,
+                fechaInicio,
                 observaciones,
             }
         })

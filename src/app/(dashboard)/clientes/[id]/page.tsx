@@ -4,7 +4,7 @@ import { getClienteById } from "@/services/clientes"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Calendar, Plus, ClipboardList, Leaf } from "lucide-react"
+import { User, Calendar, Plus, ClipboardList, Leaf, Pencil, Mail, Phone, MapPin, CreditCard } from "lucide-react"
 
 import { GoBackButton } from "@/components/ui/GoBackButton"
 
@@ -50,6 +50,12 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" asChild>
+                        <Link href={`/clientes/${cliente.id}/edit`}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                        </Link>
+                    </Button>
+                    <Button variant="outline" asChild>
                         <Link href={`/tareas?clienteId=${cliente.id}`}>
                             <ClipboardList className="mr-2 h-4 w-4" />
                             Ver Tareas
@@ -66,33 +72,63 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Main Info */}
-                <div className="lg:col-span-1 space-y-6">
+                <div className="lg:col-span-3 space-y-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Detalles</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="flex items-center justify-between border-b pb-2">
-                                <span className="text-muted-foreground flex items-center gap-2">
-                                    Código
-                                </span>
-                                <span className="font-mono font-bold">{cliente.codigo}</span>
+                        <CardContent className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                            <div className="space-y-1">
+                                <span className="text-sm font-medium text-muted-foreground">Código</span>
+                                <p className="font-mono text-lg">{cliente.codigo}</p>
                             </div>
-                            <div className="flex items-center justify-between border-b pb-2">
-                                <span className="text-muted-foreground flex items-center gap-2">
-                                    <User className="w-4 h-4" /> Responsable
+                            <div className="space-y-1">
+                                <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                    <User className="h-4 w-4" /> Responsable
                                 </span>
-                                <span className="font-medium">{cliente.responsable}</span>
+                                <p className="font-medium">{cliente.responsable}</p>
                             </div>
-                            <div className="flex items-center justify-between border-b pb-2">
-                                <span className="text-muted-foreground flex items-center gap-2">
-                                    <Calendar className="w-4 h-4" /> Registrado
+                            {cliente.nit && (
+                                <div className="space-y-1">
+                                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <CreditCard className="h-4 w-4" /> NIT
+                                    </span>
+                                    <p className="font-medium">{cliente.nit}</p>
+                                </div>
+                            )}
+                            {cliente.email && (
+                                <div className="space-y-1">
+                                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <Mail className="h-4 w-4" /> Email
+                                    </span>
+                                    <p className="font-medium truncate" title={cliente.email}>{cliente.email}</p>
+                                </div>
+                            )}
+                            {cliente.telefono && (
+                                <div className="space-y-1">
+                                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <Phone className="h-4 w-4" /> Teléfono
+                                    </span>
+                                    <p className="font-medium">{cliente.telefono}</p>
+                                </div>
+                            )}
+                            {cliente.direccion && (
+                                <div className="space-y-1">
+                                    <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <MapPin className="h-4 w-4" /> Dirección
+                                    </span>
+                                    <p className="font-medium truncate" title={cliente.direccion}>{cliente.direccion}</p>
+                                </div>
+                            )}
+                            <div className="space-y-1">
+                                <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" /> Registrado
                                 </span>
-                                <span className="font-medium">{cliente.createdAt.toLocaleDateString()}</span>
+                                <p className="font-medium">{cliente.createdAt.toLocaleDateString()}</p>
                             </div>
                             {cliente.observaciones && (
-                                <div className="pt-2">
-                                    <span className="text-muted-foreground block mb-1">Observaciones:</span>
+                                <div className="space-y-1 sm:col-span-2 lg:col-span-4">
+                                    <span className="text-sm font-medium text-muted-foreground">Observaciones</span>
                                     <p className="text-sm bg-muted p-2 rounded">{cliente.observaciones}</p>
                                 </div>
                             )}
@@ -117,7 +153,8 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                                     <tr>
                                         <th className="p-4 font-medium">Código</th>
                                         <th className="p-4 font-medium">Nombre</th>
-                                        <th className="p-4 font-medium">Área (Ha)</th>
+                                        <th className="p-4 font-medium hidden md:table-cell">Ubicación</th>
+                                        <th className="p-4 font-medium hidden md:table-cell">Inicio</th>
                                         <th className="p-4 font-medium">Estado</th>
                                         <th className="p-4 font-medium text-right">Acciones</th>
                                     </tr>
@@ -126,8 +163,18 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                                     {cliente.proyectos.map((proyecto: any) => (
                                         <tr key={proyecto.id} className="hover:bg-muted/50 transition-colors">
                                             <td className="p-4 font-medium">{proyecto.codigo}</td>
-                                            <td className="p-4">{proyecto.nombre}</td>
-                                            <td className="p-4">{proyecto.areaHa || '-'}</td>
+                                            <td className="p-4">
+                                                <div className="font-medium">{proyecto.nombre}</div>
+                                                <div className="text-xs text-muted-foreground md:hidden">
+                                                    {[proyecto.municipio, proyecto.departamento].filter(Boolean).join(", ")}
+                                                </div>
+                                            </td>
+                                            <td className="p-4 hidden md:table-cell text-sm text-muted-foreground">
+                                                {[proyecto.municipio, proyecto.departamento].filter(Boolean).join(", ")}
+                                            </td>
+                                            <td className="p-4 hidden md:table-cell text-sm text-muted-foreground">
+                                                {proyecto.fechaInicio ? new Date(proyecto.fechaInicio).toLocaleDateString('es-ES') : '-'}
+                                            </td>
                                             <td className="p-4">
                                                 <Badge variant={proyecto.estado === 'EN_EJECUCION' ? 'default' : 'secondary'}>
                                                     {proyecto.estado}
