@@ -576,7 +576,9 @@ export default function ExecutionFormScreen({ task, onBack, onFinish }: Executio
 
                 {/* Photos */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Registro Fotográfico (Cámara Oblogatoria)</Text>
+                    <Text style={[styles.sectionTitle, { flex: 1, paddingRight: 8 }]}>
+                        Registro Fotográfico (Cámara Obligatoria)
+                    </Text>
                     <View style={{ flexDirection: 'row', gap: 10 }}>
                         {/* Gallery option removed */}
                         <TouchableOpacity onPress={takePhoto}><Text style={styles.addButton}>Abrir Cámara</Text></TouchableOpacity>

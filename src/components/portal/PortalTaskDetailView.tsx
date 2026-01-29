@@ -234,12 +234,21 @@ export function PortalTaskDetailView({ tarea }: PortalTaskDetailViewProps) {
                         <span className="sr-only">Cerrar</span>
                     </DialogClose>
                     {selectedImage && (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                            src={selectedImage}
-                            alt="Vista Completa"
-                            className="max-w-full max-h-[90vh] object-contain"
-                        />
+                        <div className="relative flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={selectedImage}
+                                alt="Vista Completa"
+                                className="max-w-full max-h-[90vh] object-contain rounded-sm"
+                            />
+                            {/* Watermark inside the image container */}
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="/logo-ravelo-transparent.png"
+                                alt="Watermark"
+                                className="absolute top-4 right-4 w-24 opacity-60 z-10 pointer-events-none"
+                            />
+                        </div>
                     )}
                 </DialogContent>
             </Dialog>

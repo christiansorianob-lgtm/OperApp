@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import { Combobox } from "@/components/ui/combobox"
 import { ProductCreationDialog } from "./ProductCreationDialog"
 import { MachineryCreationDialog } from "./MachineryCreationDialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 interface ExecutionFormProps {
     tarea: any
@@ -33,6 +34,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
     const [executionDate, setExecutionDate] = useState(new Date().toISOString().split('T')[0])
 
     const [files, setFiles] = useState<FileList | null>(null)
+    const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
     const getSafeImageSrc = (base64OrUrl: string) => {
         if (!base64OrUrl) return ""
@@ -188,7 +190,8 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                                                 <img
                                                     src={getSafeImageSrc(report.fotoAntes)}
                                                     alt="Antes"
-                                                    className="w-full aspect-[4/3] object-cover rounded border bg-muted"
+                                                    className="w-full aspect-[4/3] object-cover rounded border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                                                    onClick={() => setSelectedImage(getSafeImageSrc(report.fotoAntes))}
                                                 />
                                             </div>
                                             <div className="space-y-1">
@@ -197,7 +200,8 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                                                 <img
                                                     src={getSafeImageSrc(report.fotoDespues)}
                                                     alt="Despues"
-                                                    className="w-full aspect-[4/3] object-cover rounded border bg-muted"
+                                                    className="w-full aspect-[4/3] object-cover rounded border bg-muted cursor-pointer hover:opacity-90 transition-opacity"
+                                                    onClick={() => setSelectedImage(getSafeImageSrc(report.fotoDespues))}
                                                 />
                                             </div>
                                         </div>
@@ -339,6 +343,30 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                     Guardar Ejecución
                 </Button>
             </div>
+            <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
+                <DialogContent className="max-w-4xl w-full p-0 overflow-hidden bg-black/90 border-none">
+                    <DialogTitle className="sr-only">Imagen Ampliada</DialogTitle>
+                    <div className="relative w-full h-full flex items-center justify-center p-4">
+                        {selectedImage && (
+                            <div className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={selectedImage}
+                                    alt="Imagen ampliada"
+                                    className="max-w-full max-h-[85vh] object-contain rounded-sm"
+                                />
+                                {/* Watermark inside the image container */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="/logo-ravelo-transparent.png"
+                                    alt="Watermark"
+                                    className="absolute top-2 right-2 w-20 opacity-60 z-10 pointer-events-none"
+                                />
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </form >
     )
 }
