@@ -36,8 +36,9 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
 
     const getSafeImageSrc = (base64OrUrl: string) => {
         if (!base64OrUrl) return ""
-        if (base64OrUrl.startsWith("http") || base64OrUrl.startsWith("/")) return base64OrUrl
         if (base64OrUrl.startsWith("data:")) return base64OrUrl
+        if (base64OrUrl.startsWith("http")) return base64OrUrl
+        if (base64OrUrl.startsWith("/") && base64OrUrl.length < 500) return base64OrUrl
         return `data:image/jpeg;base64,${base64OrUrl}`
     }
 

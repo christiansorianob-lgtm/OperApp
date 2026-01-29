@@ -24,9 +24,12 @@ export function TaskExecutionDetails({ tarea }: TaskExecutionDetailsProps) {
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
     const getSafeImageSrc = (base64OrUrl: string) => {
-        if (!base64OrUrl) return "/placeholder.png" // or empty
-        if (base64OrUrl.startsWith("http") || base64OrUrl.startsWith("/")) return base64OrUrl
+        if (!base64OrUrl) return "/placeholder.png"
         if (base64OrUrl.startsWith("data:")) return base64OrUrl
+        if (base64OrUrl.startsWith("http")) return base64OrUrl
+        // If it starts with / but is very long, it's likely a base64 string (like /9j/...)
+        // Relative paths are usually short.
+        if (base64OrUrl.startsWith("/") && base64OrUrl.length < 500) return base64OrUrl
         return `data:image/jpeg;base64,${base64OrUrl}`
     }
 
