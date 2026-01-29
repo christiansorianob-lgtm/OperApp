@@ -23,6 +23,13 @@ export function TaskExecutionDetails({ tarea }: TaskExecutionDetailsProps) {
     const points = tarea.trazabilidad || []
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
+    const getSafeImageSrc = (base64OrUrl: string) => {
+        if (!base64OrUrl) return "/placeholder.png" // or empty
+        if (base64OrUrl.startsWith("http") || base64OrUrl.startsWith("/")) return base64OrUrl
+        if (base64OrUrl.startsWith("data:")) return base64OrUrl
+        return `data:image/jpeg;base64,${base64OrUrl}`
+    }
+
     return (
         <div className="space-y-6">
             <Card className="border-green-500/20 bg-green-500/5">
@@ -156,20 +163,20 @@ export function TaskExecutionDetails({ tarea }: TaskExecutionDetailsProps) {
                                                 <span className="text-[10px] font-bold text-muted-foreground uppercase bg-muted px-1.5 py-0.5 rounded w-fit">ANTES</span>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src={report.fotoAntes}
+                                                    src={getSafeImageSrc(report.fotoAntes)}
                                                     alt="Foto Antes"
                                                     className="w-full aspect-[4/3] object-cover rounded-md border bg-muted cursor-pointer hover:opacity-90 transition-all"
-                                                    onClick={() => setSelectedImage(report.fotoAntes)}
+                                                    onClick={() => setSelectedImage(getSafeImageSrc(report.fotoAntes))}
                                                 />
                                             </div>
                                             <div className="space-y-1.5">
                                                 <span className="text-[10px] font-bold text-muted-foreground uppercase bg-muted px-1.5 py-0.5 rounded w-fit">DESPUÉS</span>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src={report.fotoDespues}
+                                                    src={getSafeImageSrc(report.fotoDespues)}
                                                     alt="Foto Después"
                                                     className="w-full aspect-[4/3] object-cover rounded-md border bg-muted cursor-pointer hover:opacity-90 transition-all"
-                                                    onClick={() => setSelectedImage(report.fotoDespues)}
+                                                    onClick={() => setSelectedImage(getSafeImageSrc(report.fotoDespues))}
                                                 />
                                             </div>
                                         </div>

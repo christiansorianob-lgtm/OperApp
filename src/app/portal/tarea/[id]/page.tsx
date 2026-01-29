@@ -40,6 +40,13 @@ export default async function TaskDetailPage(props: Props) {
         return notFound()
     }
 
+    const getSafeImageSrc = (base64OrUrl: string) => {
+        if (!base64OrUrl) return ""
+        if (base64OrUrl.startsWith("http") || base64OrUrl.startsWith("/")) return base64OrUrl
+        if (base64OrUrl.startsWith("data:")) return base64OrUrl
+        return `data:image/jpeg;base64,${base64OrUrl}`
+    }
+
     return (
         <div className="space-y-6">
             <div>
@@ -140,7 +147,7 @@ export default async function TaskDetailPage(props: Props) {
                                                     <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-200 px-2 py-1 rounded w-fit">ANTES</span>
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img
-                                                        src={report.fotoAntes}
+                                                        src={getSafeImageSrc(report.fotoAntes)}
                                                         alt="Foto Antes"
                                                         className="w-full aspect-[4/3] object-cover rounded-md border bg-white"
                                                     />
@@ -149,10 +156,14 @@ export default async function TaskDetailPage(props: Props) {
                                                     <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-200 px-2 py-1 rounded w-fit">DESPUÉS</span>
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                                     <img
-                                                        src={report.fotoDespues}
+                                                        src={getSafeImageSrc(report.fotoDespues)}
                                                         alt="Foto Después"
                                                         className="w-full aspect-[4/3] object-cover rounded-md border bg-white"
                                                     />
+                                                    {/* Debug Info: Remove 'hidden' to see raw src preview */}
+                                                    <p className="text-[8px] text-red-500 font-mono mt-1 break-all">
+                                                        DEBUG: {getSafeImageSrc(report.fotoDespues).substring(0, 50)}...
+                                                    </p>
                                                 </div>
                                             </div>
                                             {report.comentario && (

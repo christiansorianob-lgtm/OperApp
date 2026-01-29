@@ -34,6 +34,13 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
 
     const [files, setFiles] = useState<FileList | null>(null)
 
+    const getSafeImageSrc = (base64OrUrl: string) => {
+        if (!base64OrUrl) return ""
+        if (base64OrUrl.startsWith("http") || base64OrUrl.startsWith("/")) return base64OrUrl
+        if (base64OrUrl.startsWith("data:")) return base64OrUrl
+        return `data:image/jpeg;base64,${base64OrUrl}`
+    }
+
     // Options for Comboboxes
     const productoOptions = useMemo(() => productos.map(p => ({
         value: p.id,
@@ -178,7 +185,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                                                 <span className="text-[10px] font-bold text-muted-foreground uppercase">ANTES</span>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src={report.fotoAntes}
+                                                    src={getSafeImageSrc(report.fotoAntes)}
                                                     alt="Antes"
                                                     className="w-full aspect-[4/3] object-cover rounded border bg-muted"
                                                 />
@@ -187,7 +194,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                                                 <span className="text-[10px] font-bold text-muted-foreground uppercase">DESPUÉS</span>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src={report.fotoDespues}
+                                                    src={getSafeImageSrc(report.fotoDespues)}
                                                     alt="Despues"
                                                     className="w-full aspect-[4/3] object-cover rounded border bg-muted"
                                                 />
