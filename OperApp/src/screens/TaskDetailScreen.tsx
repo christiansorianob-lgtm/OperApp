@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import React, { useState, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Linking, Platform, Modal, SafeAreaView, TextInput } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image, Linking, Platform, Modal, SafeAreaView, TextInput, DeviceEventEmitter } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useTracking } from '../context/TrackingContext';
 import { captureRef } from 'react-native-view-shot';
@@ -27,15 +27,30 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     // Watermarking Refs & State
+    // Watermarking Refs & State
     const viewShotRef = useRef(null);
-    const [processingPhoto, setProcessingPhoto] = useState<{ uri: string, meta: string } | null>(null);
+    const [processingPhoto, setProcessingPhoto] = useState<{ uri: string, meta: string, reportType?: 'ANTES' | 'DESPUES' | null } | null>(null);
 
-    const { startTracking } = useTracking();
+    const { startTracking, isTracking } = useTracking();
 
     const [reportDetails, setReportDetails] = useState<any[]>([]);
     const [isReportModalVisible, setReportModalVisible] = useState(false);
     const [tempReport, setTempReport] = useState<{ fotoAntes: string | null, fotoDespues: string | null, comentario: string }>({ fotoAntes: null, fotoDespues: null, comentario: '' });
+
+    // UI State for Spinner Indicators (Logic uses processingPhoto.reportType)
     const [processingType, setProcessingType] = useState<'ANTES' | 'DESPUES' | null>(null);
+
+    // Removed fragile Ref/State for processing type. Now using context in processingPhoto object.
+
+    const getSafeImageSrc = (base64OrUrl: string) => {
+        if (!base64OrUrl) return undefined; // or a placeholder
+        if (base64OrUrl.startsWith("data:")) return base64OrUrl;
+        if (base64OrUrl.startsWith("http")) return base64OrUrl;
+        // If relatively short and starts with /, treat as path
+        if (base64OrUrl.startsWith("/") && base64OrUrl.length < 500) return `${API_BASE.replace('/api/v1', '')}${base64OrUrl}`;
+        // Otherwise, assume raw base64
+        return `data:image/jpeg;base64,${base64OrUrl}`;
+    };
 
     // Fetch Report Details
     useEffect(() => {
@@ -53,13 +68,50 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
         fetchReport();
     }, [task.id]); // Reload when task ID changes
 
+    // Auto-Resume Tracking if EN_PROCESO
+    useEffect(() => {
+        if (task.estado === 'EN_PROCESO' && task.id) {
+            startTracking(task.id).then(success => {
+                if (!success && !loading) {
+                    // Only warn if we really expected it to work
+                    console.warn("Auto-resume tracking failed");
+                }
+            });
+        }
+    }, [task.id, task.estado]);
+
+    // UI Indicators: Network & GPS Pulse
+    const [isConnected, setIsConnected] = useState(true);
+    const [isRecordingPoint, setIsRecordingPoint] = useState(false);
+
+    useEffect(() => {
+        // Network Listener
+        Network.getNetworkStateAsync().then(state => setIsConnected(!!state.isConnected));
+
+        const netInterval = setInterval(async () => {
+            const state = await Network.getNetworkStateAsync();
+            setIsConnected(!!state.isConnected && !!state.isInternetReachable);
+        }, 5000);
+
+        // GPS Pulse Listener
+        const subscription = DeviceEventEmitter.addListener('GPS_POINT_SAVED', () => {
+            setIsRecordingPoint(true);
+            setTimeout(() => setIsRecordingPoint(false), 1000); // Pulse for 1 second
+        });
+
+        return () => {
+            clearInterval(netInterval);
+            subscription.remove();
+        }
+    }, []);
+
     // Update processingPhoto effect to handle report photos
     useEffect(() => {
         if (processingPhoto && viewShotRef.current) {
             const processAndUpload = async () => {
                 try {
-                    // Wait for render
-                    await new Promise(r => setTimeout(r, 500));
+                    // Wait for render (Increased to 1000ms to avoid black screens on slow devices)
+                    await new Promise(r => setTimeout(r, 1000));
 
                     const uri = await captureRef(viewShotRef, {
                         format: "jpg",
@@ -67,16 +119,20 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                         result: "tmpfile"
                     });
 
-                    // Logic branch: If we are in "Report Mode" (processingType is set), save to Temp State
-                    // Else, it's a standard Evidence Upload
-                    if (processingType) {
+                    // Logic branch: Check context directly from the photo object
+                    const { reportType } = processingPhoto;
+                    // DEBUG LOG
+                    console.log(`[PhotoProcess] Processing photo. Mode: ${reportType || 'EVIDENCE'}`);
+
+                    if (reportType) {
                         setTempReport(prev => ({
                             ...prev,
-                            [processingType === 'ANTES' ? 'fotoAntes' : 'fotoDespues']: uri
+                            [reportType === 'ANTES' ? 'fotoAntes' : 'fotoDespues']: uri
                         }));
-                        setProcessingType(null); // Reset
+                        // No need to reset anything else, just finish
                     } else {
-                        // Standard Evidence Upload
+                        // Extra safety check: if we are somehow in the modal flow (tempReport has content?) No, that's orthogonal.
+                        // But let's verify we are not accidentally uploading report photos.
                         await uploadEvidence(uri);
                     }
 
@@ -86,6 +142,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                 } finally {
                     setProcessingPhoto(null);
                     setUploading(false);
+                    setProcessingType(null); // Reset UI state
                 }
             };
             processAndUpload();
@@ -102,7 +159,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
             if (status !== 'granted') return Alert.alert("Error", "Se requiere ubicación");
 
             setUploading(true);
-            setProcessingType(type); // Set tracking mode
+            setProcessingType(type); // Set UI tracking mode
 
             // Location
             let locationText = "";
@@ -129,8 +186,8 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
             });
 
             if (!result.canceled && result.assets[0]) {
-                setProcessingPhoto({ uri: result.assets[0].uri, meta });
-                // Effect will trigger next
+                // PASS CONTEXT HERE
+                setProcessingPhoto({ uri: result.assets[0].uri, meta, reportType: type });
             } else {
                 setUploading(false);
                 setProcessingType(null);
@@ -157,7 +214,6 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
             // Helper to convert URI to Base64
             // Expo FileSystem is needed.
             // Since we don't have FileSystem imported, we might fail.
-            // Wait, we are in Expo. We need expo-file-system. 
             // I should check if it's installed. Checking package.json...
             // It's not in the visible package.json lines. 
             // I'll assume standard upload logic is safer if I don't confirm FileSystem.
@@ -278,8 +334,9 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
 
 
                             if (response.ok) {
-                                if (task.requiereTrazabilidad) {
-                                    startTracking(task.id);
+                                const trackingStarted = await startTracking(task.id);
+                                if (!trackingStarted) {
+                                    Alert.alert("Atención", "No se pudo iniciar el rastreo GPS. Por favor habilita 'Permitir todo el tiempo' en la configuración de ubicación o reintenta.");
                                 }
                                 if (onTaskUpdate) {
                                     onTaskUpdate({ ...task, estado: 'EN_PROCESO' });
@@ -317,6 +374,8 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
 
             // 2. Get Location (MANDATORY)
             setUploading(true); // Reuse spinner to indicate "Working..."
+            setProcessingType(null); // Explicitly clear type for General Evidence
+
             let locationText = "";
 
             try {
@@ -355,7 +414,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
 
             if (!result.canceled && result.assets[0]) {
                 setUploading(true); // Restart spinner for processing
-                setProcessingPhoto({ uri: result.assets[0].uri, meta });
+                setProcessingPhoto({ uri: result.assets[0].uri, meta, reportType: null });
             }
 
         } catch (error: any) {
@@ -365,34 +424,8 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
         }
     };
 
-    // Effect to process watermark and upload
-    useEffect(() => {
-        if (processingPhoto && viewShotRef.current) {
-            const processAndUpload = async () => {
-                try {
-                    // Wait for render
-                    await new Promise(r => setTimeout(r, 500));
+    // Old useEffect removed to fix duplication bug.
 
-                    const uri = await captureRef(viewShotRef, {
-                        format: "jpg",
-                        quality: 0.2,
-                        result: "tmpfile"
-                    });
-
-                    // Proceed to upload the WATERMARKED uri
-                    await uploadEvidence(uri);
-
-                } catch (e) {
-                    console.error("Watermark/Upload failed", e);
-                    Alert.alert("Error", "Falló el procesamiento de la foto");
-                    setUploading(false);
-                } finally {
-                    setProcessingPhoto(null);
-                }
-            };
-            processAndUpload();
-        }
-    }, [processingPhoto]);
 
     const uploadEvidence = async (uri: string) => {
         try {
@@ -426,16 +459,17 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                 const data = json || {};
                 Alert.alert("Éxito", "Evidencia subida correctamente.");
                 if (data.url) {
-                    const fullUrl = data.url.startsWith('http') ? data.url : `${API_BASE.replace('/api/v1/tareas', '')}${data.url}`;
+                    const fullUrl = data.url.startsWith('http') ? data.url : `${API_BASE.replace('/api/v1', '')
+                        }${data.url} `;
                     setEvidences(prev => [...prev, fullUrl]);
                 }
             } else {
                 let errorMessage = "Error del servidor: " + response.status;
                 if (json) {
-                    if (json.details) errorMessage += `\n${json.details}`;
-                    else if (json.error) errorMessage += `\n${json.error}`;
+                    if (json.details) errorMessage += `\n${json.details} `;
+                    else if (json.error) errorMessage += `\n${json.error} `;
                 } else if (textBody) {
-                    errorMessage += `\n${textBody.substring(0, 50)}`;
+                    errorMessage += `\n${textBody.substring(0, 50)} `;
                 }
                 throw new Error(errorMessage);
             }
@@ -452,7 +486,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
             if (isNetworkError) {
                 // Offline Fallback: Save to Draft
                 try {
-                    const DRAFT_KEY = `DRAFT_TASK_${task.id}`;
+                    const DRAFT_KEY = `DRAFT_TASK_${task.id} `;
                     const draftStr = await getItem(DRAFT_KEY);
                     const draft = draftStr ? JSON.parse(draftStr) : {};
 
@@ -475,7 +509,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                 }
             } else {
                 // Server Error (Online but rejected)
-                Alert.alert("Error de Servidor", `No se pudo guardar la evidencia. Intenta nuevamente. (${error.message})`);
+                Alert.alert("Error de Servidor", `No se pudo guardar la evidencia.Intenta nuevamente. (${error.message})`);
             }
         } finally {
             setUploading(false);
@@ -530,6 +564,28 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                 <TouchableOpacity onPress={handleShare} style={styles.backButton}>
                     <Feather name="share-2" size={24} color="#fff" />
                 </TouchableOpacity>
+            </View>
+
+            {/* Persistent Status Bar (Top) */}
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#e5e7eb', elevation: 2, paddingHorizontal: 16, paddingVertical: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* Network */}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Feather name={isConnected ? "wifi" : "wifi-off"} size={14} color={isConnected ? "#16a34a" : "#ef4444"} />
+                    <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: '600', color: isConnected ? '#16a34a' : '#ef4444' }}>
+                        {isConnected ? "Online" : "Offline"}
+                    </Text>
+                </View>
+
+                {/* Separator */}
+                <View style={{ width: 1, height: 16, backgroundColor: '#e5e7eb', marginHorizontal: 12 }} />
+
+                {/* GPS Pulse */}
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Feather name="navigation" size={14} color={isRecordingPoint ? "#16a34a" : "#9ca3af"} />
+                    <Text style={{ marginLeft: 6, fontSize: 12, fontWeight: '600', color: isRecordingPoint ? '#16a34a' : '#6b7280' }}>
+                        {isRecordingPoint ? "Grabando Punto..." : "GPS Esperando..."}
+                    </Text>
+                </View>
             </View>
 
             <ScrollView style={styles.content}>
@@ -605,99 +661,139 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                             </View>
                         </View>
 
-                        <View style={[styles.row, { marginTop: 12, borderTopWidth: 1, borderColor: '#f3f4f6', paddingTop: 12 }]}>
-                            <Feather name="clock" size={20} color="#3b82f6" />
-                            <View>
-                                <Text style={styles.fieldLabel}>Duración Total</Text>
-                                <Text style={[styles.infoText, { fontWeight: 'bold', color: '#1f2937' }]}>
-                                    {formatDuration(task.fechaInicioReal, task.fechaEjecucion)}
-                                </Text>
-                            </View>
-                        </View>
+                        {/* GPS Status Indicator */}
+                        {/* GPS Status Indicator */}
                     </View>
                 )}
+
+                {/* Status Bar: Network & GPS */}
+
+
+                {/* GPS Service Status */}
+                <View style={{ marginBottom: 16, flexDirection: 'row', alignItems: 'center', backgroundColor: isTracking ? '#ecfdf5' : '#fff1f2', padding: 8, borderRadius: 8, borderWidth: 1, borderColor: isTracking ? '#a7f3d0' : '#fecaca' }}>
+                    <Feather name={isTracking ? "check-circle" : "x-circle"} size={16} color={isTracking ? "#059669" : "#dc2626"} />
+                    <Text style={{ marginLeft: 8, color: isTracking ? "#065f46" : "#991b1b", fontWeight: '600', fontSize: 12 }}>
+                        {isTracking ? "Servicio GPS Activo" : "Servicio GPS Detenido"}
+                    </Text>
+                    {!isTracking && task.estado === 'EN_PROCESO' && (
+                        <TouchableOpacity onPress={() => startTracking(task.id).then(ok => !ok && Alert.alert("Error", "No se pudo iniciar GPS. Revisa permisos."))} style={{ marginLeft: 'auto', backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>ACTIVAR</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                <View style={[styles.row, { marginTop: 12, borderTopWidth: 1, borderColor: '#f3f4f6', paddingTop: 12 }]}>
+                    <Feather name="clock" size={20} color="#3b82f6" />
+                    <View>
+                        <Text style={styles.fieldLabel}>Duración Total</Text>
+                        <Text style={[styles.infoText, { fontWeight: 'bold', color: '#1f2937' }]}>
+                            {formatDuration(task.fechaInicioReal, task.fechaEjecucion)}
+                        </Text>
+                    </View>
+                </View>
+
 
                 {/* Observaciones */}
-                {task.observaciones && (
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Observaciones</Text>
-                        <Text style={styles.sectionText}>{task.observaciones}</Text>
-                    </View>
-                )}
+                {
+                    task.observaciones && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Observaciones</Text>
+                            <Text style={styles.sectionText}>{task.observaciones}</Text>
+                        </View>
+                    )
+                }
 
                 {/* Reporte Fotográfico Section */}
-                {(task.estado === 'EN_PROCESO' || reportDetails.length > 0) && (
-                    <View style={styles.section}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={styles.sectionTitle}>Reporte Fotográfico ({reportDetails.length})</Text>
-                            {task.estado === 'EN_PROCESO' && (
-                                <TouchableOpacity onPress={() => setReportModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#dcfce7', padding: 6, borderRadius: 8 }}>
-                                    <Feather name="plus-circle" size={16} color="#16a34a" style={{ marginRight: 4 }} />
-                                    <Text style={{ color: '#16a34a', fontWeight: 'bold' }}>Agregar</Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        {reportDetails.map((item, idx) => (
-                            <View key={item.id || idx} style={{ marginBottom: 15, padding: 10, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' }}>
-                                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>ANTES</Text>
-                                        <TouchableOpacity onPress={() => setSelectedImage(item.fotoAntes.startsWith('http') ? item.fotoAntes : `${API_BASE.replace('/api/v1/tareas', '')}${item.fotoAntes}`)}>
-                                            <Image
-                                                source={{ uri: item.fotoAntes.startsWith('http') ? item.fotoAntes : `${API_BASE.replace('/api/v1/tareas', '')}${item.fotoAntes}` }}
-                                                style={{ width: '100%', height: 100, borderRadius: 6, backgroundColor: '#f3f4f6' }}
-                                                resizeMode="cover"
-                                            />
-                                        </TouchableOpacity>
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>DESPUÉS</Text>
-                                        <TouchableOpacity onPress={() => setSelectedImage(item.fotoDespues.startsWith('http') ? item.fotoDespues : `${API_BASE.replace('/api/v1/tareas', '')}${item.fotoDespues}`)}>
-                                            <Image
-                                                source={{ uri: item.fotoDespues.startsWith('http') ? item.fotoDespues : `${API_BASE.replace('/api/v1/tareas', '')}${item.fotoDespues}` }}
-                                                style={{ width: '100%', height: 100, borderRadius: 6, backgroundColor: '#f3f4f6' }}
-                                                resizeMode="cover"
-                                            />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                                {item.comentario && <Text style={{ fontStyle: 'italic', color: '#374151', fontSize: 12 }}>"{item.comentario}"</Text>}
-                            </View>
-                        ))}
-                    </View>
-                )}
-
-                {/* Evidences Section */}
-                {(evidences.length > 0 || task.estado === 'EN_PROCESO') && (
-                    <View style={styles.section}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Text style={styles.sectionTitle}>Evidencias Generales ({evidences.length})</Text>
-                            {task.estado === 'EN_PROCESO' && (
-                                <View style={{ alignItems: 'center' }}>
-                                    <TouchableOpacity onPress={takeEvidence} disabled={uploading}>
-                                        {uploading && !processingType ? <ActivityIndicator size="small" color="#16a34a" /> : <Feather name="camera" size={20} color="#16a34a" />}
+                {
+                    (task.estado === 'EN_PROCESO' || reportDetails.length > 0) && (
+                        <View style={styles.section}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                <Text style={styles.sectionTitle}>Reporte Fotográfico ({reportDetails.length})</Text>
+                                {task.estado === 'EN_PROCESO' && (
+                                    <TouchableOpacity onPress={() => setReportModalVisible(true)} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#dcfce7', padding: 6, borderRadius: 8 }}>
+                                        <Feather name="plus-circle" size={16} color="#16a34a" style={{ marginRight: 4 }} />
+                                        <Text style={{ color: '#16a34a', fontWeight: 'bold' }}>Agregar</Text>
                                     </TouchableOpacity>
-                                </View>
-                            )}
-                        </View>
+                                )}
+                            </View>
 
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.evidenceRow}>
-                            {evidences.map((url, index) => (
-                                <TouchableOpacity key={index} style={styles.evidenceItem} onPress={() => setSelectedImage(url.startsWith('http') ? url : `${API_BASE.replace('/api/v1/tareas', '')}${url}`)}>
-                                    <Image
-                                        source={{ uri: url.startsWith('http') ? url : `${API_BASE.replace('/api/v1/tareas', '')}${url}` }}
-                                        style={styles.evidenceImage}
-                                        resizeMode="cover"
-                                    />
-                                </TouchableOpacity>
+                            {reportDetails.map((item, idx) => (
+                                <View key={item.id || idx} style={{ marginBottom: 15, padding: 10, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                                    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 8 }}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>ANTES</Text>
+                                            <TouchableOpacity onPress={() => setSelectedImage(getSafeImageSrc(item.fotoAntes) || null)}>
+                                                <Image
+                                                    source={{ uri: getSafeImageSrc(item.fotoAntes) }}
+                                                    style={{ width: '100%', height: 100, borderRadius: 6, backgroundColor: '#f3f4f6' }}
+                                                    resizeMode="cover"
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>DESPUÉS</Text>
+                                            <TouchableOpacity onPress={() => setSelectedImage(getSafeImageSrc(item.fotoDespues) || null)}>
+                                                <Image
+                                                    source={{ uri: getSafeImageSrc(item.fotoDespues) }}
+                                                    style={{ width: '100%', height: 100, borderRadius: 6, backgroundColor: '#f3f4f6' }}
+                                                    resizeMode="cover"
+                                                />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                    {item.comentario && <Text style={{ fontStyle: 'italic', color: '#374151', fontSize: 12 }}>"{item.comentario}"</Text>}
+                                </View>
                             ))}
-                            {evidences.length === 0 && (
-                                <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>Sin evidencias generales</Text>
-                            )}
-                        </ScrollView>
-                    </View>
-                )}
+                        </View>
+                    )
+                }
+
+                {/* Evidences Section - Filtered to exclude report photos */}
+                {
+                    (() => {
+                        const uniqueEvidences = evidences.filter(url => {
+                            // 1. Aggressive Filter: General Evidence MUST be a path (short), not a Base64 string.
+                            // If it's a huge string or starts with data:, it's a Report Photo leaked into this list.
+                            if (url.length > 500 || url.startsWith('data:')) return false;
+
+                            // 2. Secondary Filter: Check if this PATH is somehow also in Report (unlikely if Report is Base64, but safe to keep)
+                            const isReportPhoto = reportDetails.some(r => r.fotoAntes === url || r.fotoDespues === url);
+                            return !isReportPhoto;
+                        });
+
+                        if (uniqueEvidences.length === 0 && task.estado !== 'EN_PROCESO') return null;
+
+                        return (
+                            <View style={styles.section}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Text style={styles.sectionTitle}>Evidencias Generales ({uniqueEvidences.length})</Text>
+                                    {task.estado === 'EN_PROCESO' && (
+                                        <View style={{ alignItems: 'center' }}>
+                                            <TouchableOpacity onPress={takeEvidence} disabled={uploading}>
+                                                {uploading && !processingType ? <ActivityIndicator size="small" color="#16a34a" /> : <Feather name="camera" size={20} color="#16a34a" />}
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.evidenceRow}>
+                                    {uniqueEvidences.map((url, index) => (
+                                        <TouchableOpacity key={index} style={styles.evidenceItem} onPress={() => setSelectedImage(getSafeImageSrc(url) || null)}>
+                                            <Image
+                                                source={{ uri: getSafeImageSrc(url) }}
+                                                style={styles.evidenceImage}
+                                                resizeMode="cover"
+                                            />
+                                        </TouchableOpacity>
+                                    ))}
+                                    {uniqueEvidences.length === 0 && (
+                                        <Text style={{ color: '#9ca3af', fontStyle: 'italic' }}>Sin evidencias generales</Text>
+                                    )}
+                                </ScrollView>
+                            </View>
+                        );
+                    })()
+                }
 
                 {/* Actions */}
                 <View style={styles.actionContainer}>
@@ -733,10 +829,10 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
 
                 {/* Spacer for bottom */}
                 <View style={{ height: 40 }} />
-            </ScrollView>
+            </ScrollView >
 
             {/* Image Viewer Modal */}
-            <Modal
+            < Modal
                 visible={!!selectedImage}
                 transparent={true}
                 animationType="fade"
@@ -767,10 +863,10 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                         resizeMode="contain"
                     />
                 </View>
-            </Modal>
+            </Modal >
 
             {/* Report Form Modal */}
-            <Modal
+            < Modal
                 visible={isReportModalVisible}
                 animationType="slide"
                 presentationStyle="pageSheet"
@@ -851,7 +947,7 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
-            </Modal>
+            </Modal >
         </View >
     );
 }
@@ -875,7 +971,7 @@ function TaskTimer({ startDate }: { startDate: string }) {
                 const hours = Math.floor(diff / (1000 * 60 * 60));
                 const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((diff % (1000 * 60)) / 1000); // Optional: add seconds
-                setElapsed(`${hours}h ${minutes}m ${seconds}s`);
+                setElapsed(`${hours}h ${minutes}m ${seconds} s`);
             }
         }, 1000);
 
@@ -1065,6 +1161,6 @@ function formatDuration(start?: string, end?: string) {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
 
-    if (hours > 0) return `${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes} m`;
     return `${minutes} min`;
 }

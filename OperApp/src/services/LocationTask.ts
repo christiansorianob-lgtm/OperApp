@@ -1,6 +1,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as Battery from 'expo-battery';
+import { DeviceEventEmitter } from 'react-native';
 import { insertPoint, initTrackingDB } from './db';
 
 const LOCATION_TASK_NAME = 'BACKGROUND_GPS_TRACKING';
@@ -47,15 +48,15 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             const { latitude, longitude, accuracy, speed, heading } = location.coords;
             const timestamp = location.timestamp;
 
-            // 1. Accuracy Filter: discard if accuracy > 100m
-            if (accuracy && accuracy > 100) {
+            // 1. Accuracy Filter: discard if accuracy > 25m (Strict for urban areas)
+            if (accuracy && accuracy > 25) {
                 console.log(`[GPS] Skipped (Low Accuracy: ${accuracy}m)`);
                 continue;
             }
 
             // 2. Smart Filtering (Stationary Filter)
-            // If speed is very low (< 0.5 m/s) AND distance from last saved point is small (< 20m),
-            // consider it "noise" or "still at same spot" and skip saving to save DB space.
+            // If speed is very low (< 0.5 m/s) AND distance from last saved point is small,
+            // consider it "noise" or "still at same spot".
             if (lastSavedPoint) {
                 const dist = getDistanceFromLatLonInMeters(
                     lastSavedPoint.latitude,
@@ -64,10 +65,18 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
                     longitude
                 );
 
-                // If moving very slowly or stopped, and haven't moved far enough to justify a new point
                 const currentSpeed = speed || 0;
-                if (currentSpeed < 0.5 && dist < 20) {
-                    console.log(`[GPS] Skipped (Stationary: ${currentSpeed}m/s, Dist: ${dist.toFixed(1)}m)`);
+                // STRICTER FILTER: Reduce noise when stationary (office/traffic)
+                // If moving slowly (< 1.0 m/s), ignore movements < 20 meters (GPS drift)
+                if (currentSpeed < 1.0 && dist < 20) {
+                    console.log(`[GPS] Skipped (Stationary/Drift: ${currentSpeed.toFixed(2)}m/s, Dist: ${dist.toFixed(1)}m)`);
+                    continue;
+                }
+
+                // Even if speed is reported as higher (sometimes GPS jumps), 
+                // ensure we moved at least 5 meters absolute distance to avoid "spiderweb"
+                if (dist < 5) {
+                    console.log(`[GPS] Skipped (Micro-movement: Dist: ${dist.toFixed(1)}m)`);
                     continue;
                 }
             }
@@ -93,6 +102,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             // Update state
             lastSavedPoint = { latitude: cleanLat, longitude: cleanLng, timestamp };
             console.log(`[GPS] Saved: ${cleanLat}, ${cleanLng} (Spd: ${speed?.toFixed(1)}m/s, Hdg: ${heading?.toFixed(0)})`);
+
+            // Emit event for UI Pulse
+            DeviceEventEmitter.emit('GPS_POINT_SAVED', { timestamp, latitude: cleanLat, longitude: cleanLng });
         }
     }
 });
@@ -115,20 +127,20 @@ export const startBackgroundUpdate = async () => {
     if (isRegistered) await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 2000,      // Check every 2 seconds
-        distanceInterval: 10,    // Only update if moved > 10 meters (Vehicle friendly)
-        activityType: Location.ActivityType.AutomotiveNavigation, // Critical for vehicle tracking on iOS
+        accuracy: Location.Accuracy.Highest, // CHANGED: Balanced -> Highest (Reduce drift)
+        timeInterval: 5000,      // Check every 5 seconds (Relaxed from 2s)
+        distanceInterval: 15,    // UPDATE: Increased to 15m minimum movement
+        activityType: Location.ActivityType.AutomotiveNavigation,
         foregroundService: {
             notificationTitle: "OperApp Tracking",
-            notificationBody: "Registrando ruta (Vehículo/Pie)...",
-            notificationColor: "#4CAF50",
+            notificationBody: "Registrando actividad...",
+            notificationColor: "#16a34a",
         },
         showsBackgroundLocationIndicator: true,
-        pausesUpdatesAutomatically: false,
+        pausesUpdatesAutomatically: true, // Allow pausing if stationary
     });
 
-    console.log('[GPS] Service started in Automotive Mode');
+    console.log('[GPS] Service started in Optimal Mode');
     return true;
 };
 
