@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 
 import { getPendingSubmissions } from '../services/db';
 import { API_BASE } from '../config';
+import { useTracking } from '../context/TrackingContext';
 
 const API_URL = `${API_BASE}/tareas`;
 
@@ -27,6 +28,7 @@ export default function HomeScreen({ user, onLogout, onSelectTask }: HomeScreenP
     const [tasks, setTasks] = useState<Tarea[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const { startTracking } = useTracking();
 
     // View State: 'PENDING' vs 'HISTORY'
     const [viewMode, setViewMode] = useState<'PENDING' | 'HISTORY'>('PENDING');
@@ -59,6 +61,13 @@ export default function HomeScreen({ user, onLogout, onSelectTask }: HomeScreenP
                 }
 
                 setTasks(serverTasks);
+
+                // AUTO-RESUME GPS For Active Tasks
+                const activeTask = serverTasks.find(t => t.estado === 'EN_PROCESO');
+                if (activeTask) {
+                    console.log("[HomeScreen] Active task found, resuming GPS:", activeTask.id);
+                    startTracking(activeTask.id).catch(err => console.error("Auto-resume failed", err));
+                }
             } else {
                 console.warn("Error fetching tasks:", json.error);
                 Alert.alert("Error", "No se pudieron cargar las tareas.");
@@ -254,6 +263,9 @@ export default function HomeScreen({ user, onLogout, onSelectTask }: HomeScreenP
                     <Text style={styles.role}>{user.cargo || ""}</Text>
                 </View>
                 <View style={styles.headerButtons}>
+                    <TouchableOpacity onPress={fetchTasks} style={styles.iconButton}>
+                        <Feather name="refresh-cw" size={20} color="#fff" />
+                    </TouchableOpacity>
                     <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.iconButton}>
                         <Feather name="lock" size={20} color="#fff" />
                     </TouchableOpacity>
