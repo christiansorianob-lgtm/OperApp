@@ -46,6 +46,15 @@ export default function LoginPage() {
             <Card className="w-full max-w-md relative z-10 border-slate-800 bg-slate-900/50 backdrop-blur-xl shadow-2xl">
                 <CardHeader className="space-y-4 text-center">
                     <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="relative w-32 h-24 mb-2">
+                            <Image
+                                src="/logo_operapp_final.png"
+                                alt="OperApp Logo"
+                                fill
+                                className="object-contain"
+                                priority
+                            />
+                        </div>
                         <h1 className="font-bold text-3xl text-cyan-500 tracking-tight">OperApp</h1>
                         <div className="relative w-64 h-24">
                             <Image

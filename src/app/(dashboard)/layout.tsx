@@ -8,6 +8,11 @@ export default async function DashboardLayout({
 }>) {
     const session = await getAdminSession()
 
+    if (!session) {
+        const { redirect } = await import("next/navigation")
+        redirect("/login")
+    }
+
     // Security Redirect: Clients should NOT see the dashboard
     if (session && session.role === 'CLIENTE') {
         const { redirect } = await import("next/navigation")

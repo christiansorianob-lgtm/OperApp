@@ -319,7 +319,18 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                     text: "Iniciar",
                     onPress: async () => {
                         setLoading(true);
+                        // We set a temporary state if we had a separate UI for "Searching GPS"
+                        // But since startTracking is awaited, simply keeping setLoading(true) 
+                        // combined with the "Buscando satélites..." text in the button (conditional rendering) works.
+
                         try {
+                            // 1. First start GPS (Warm-up)
+                            // We do this BEFORE the API call to ensure we have a lock?
+                            // Or PARALLEL?
+                            // API call marks "EN_PROCESO". We should probably do API first 
+                            // but if GPS fails, we're in a weird state.
+                            // Better: API call first (official start time), then wait for GPS.
+
                             const response = await fetch(`${API_BASE}/tareas/${task.id}`, {
                                 method: 'PUT',
                                 headers: {
@@ -327,17 +338,24 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                                 },
                                 body: JSON.stringify({
                                     estado: 'EN_PROCESO',
-                                    fechaInicioReal: new Date() // Corrected field name
+                                    fechaInicioReal: new Date()
                                 }),
                             });
 
-
-
                             if (response.ok) {
+                                // 2. Start Tracking (This now has the 12s wait built-in)
+                                console.log("Task started in API. Waiting for GPS...");
+
+                                // Since we can't easily change the Alert text dynamically,
+                                // We trust the ActivityIndicator on the button.
+                                // But we might want to show a Toast or update a state text.
+                                // For now, the spinner is enough, but let's log it.
+
                                 const trackingStarted = await startTracking(task.id);
                                 if (!trackingStarted) {
-                                    Alert.alert("Atención", "No se pudo iniciar el rastreo GPS. Por favor habilita 'Permitir todo el tiempo' en la configuración de ubicación o reintenta.");
+                                    Alert.alert("Advertencia", "No se detectó GPS preciso, pero la tarea inició.");
                                 }
+
                                 if (onTaskUpdate) {
                                     onTaskUpdate({ ...task, estado: 'EN_PROCESO' });
                                 }
@@ -804,7 +822,10 @@ export default function TaskDetailScreen({ task, onBack, onUpdate, onStartExecut
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color="#fff" />
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <ActivityIndicator color="#fff" style={{ marginRight: 8 }} />
+                                    <Text style={styles.buttonText}>Buscando satélites...</Text>
+                                </View>
                             ) : (
                                 <>
                                     <Feather name="play" size={24} color="#fff" style={{ marginRight: 8 }} />

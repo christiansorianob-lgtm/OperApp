@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Image } from 'react-native';
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import TaskDetailScreen from './src/screens/TaskDetailScreen';
@@ -47,6 +47,20 @@ export default function App() {
   return (
     <TrackingProvider>
       <View style={styles.container}>
+        {/* Subtle Corner Logos */}
+        <View style={{ position: 'absolute', top: 40, left: 10, opacity: 0.1, zIndex: 100, pointerEvents: 'none' }}>
+          <Image source={require('./assets/logo_operapp_final.png')} style={{ width: 50, height: 50 }} resizeMode="contain" />
+        </View>
+        <View style={{ position: 'absolute', top: 40, right: 10, opacity: 0.1, zIndex: 100, pointerEvents: 'none' }}>
+          <Image source={require('./assets/logo_operapp_final.png')} style={{ width: 50, height: 50 }} resizeMode="contain" />
+        </View>
+        <View style={{ position: 'absolute', bottom: 10, left: 10, opacity: 0.1, zIndex: 100, pointerEvents: 'none' }}>
+          <Image source={require('./assets/logo_operapp_final.png')} style={{ width: 50, height: 50 }} resizeMode="contain" />
+        </View>
+        <View style={{ position: 'absolute', bottom: 10, right: 10, opacity: 0.1, zIndex: 100, pointerEvents: 'none' }}>
+          <Image source={require('./assets/logo_operapp_final.png')} style={{ width: 50, height: 50 }} resizeMode="contain" />
+        </View>
+
         {!user || currentScreen === 'LOGIN' ? (
           <>
             <LoginScreen onLogin={handleLogin} />

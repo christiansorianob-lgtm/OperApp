@@ -48,8 +48,8 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
             const { latitude, longitude, accuracy, speed, heading } = location.coords;
             const timestamp = location.timestamp;
 
-            // 1. Accuracy Filter: discard if accuracy > 25m (Strict for urban areas)
-            if (accuracy && accuracy > 25) {
+            // 1. Accuracy Filter: discard if accuracy > 15m (Stricter for precision, less "scattered")
+            if (accuracy && accuracy > 15) {
                 console.log(`[GPS] Skipped (Low Accuracy: ${accuracy}m)`);
                 continue;
             }
@@ -67,15 +67,15 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
 
                 const currentSpeed = speed || 0;
                 // STRICTER FILTER: Reduce noise when stationary (office/traffic)
-                // If moving slowly (< 1.0 m/s), ignore movements < 20 meters (GPS drift)
-                if (currentSpeed < 1.0 && dist < 20) {
+                // If moving slowly (< 1.0 m/s), ignore movements < 30 meters (GPS drift)
+                if (currentSpeed < 1.0 && dist < 30) {
                     console.log(`[GPS] Skipped (Stationary/Drift: ${currentSpeed.toFixed(2)}m/s, Dist: ${dist.toFixed(1)}m)`);
                     continue;
                 }
 
                 // Even if speed is reported as higher (sometimes GPS jumps), 
-                // ensure we moved at least 5 meters absolute distance to avoid "spiderweb"
-                if (dist < 5) {
+                // ensure we moved at least 10 meters absolute distance to avoid "spiderweb"
+                if (dist < 10) {
                     console.log(`[GPS] Skipped (Micro-movement: Dist: ${dist.toFixed(1)}m)`);
                     continue;
                 }
@@ -127,9 +127,9 @@ export const startBackgroundUpdate = async () => {
     if (isRegistered) await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Highest, // CHANGED: Balanced -> Highest (Reduce drift)
-        timeInterval: 5000,      // Check every 5 seconds (Relaxed from 2s)
-        distanceInterval: 15,    // UPDATE: Increased to 15m minimum movement
+        accuracy: Location.Accuracy.Highest, // High quality
+        timeInterval: 10000,     // Check every 10 seconds
+        distanceInterval: 30,    // Move at least 30m (Balance: precision vs points volume)
         activityType: Location.ActivityType.AutomotiveNavigation,
         foregroundService: {
             notificationTitle: "OperApp Tracking",

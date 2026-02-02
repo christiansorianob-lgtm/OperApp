@@ -10,12 +10,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Save, Loader2, Plus, Trash2, Settings } from "lucide-react"
+import { Save, Loader2, Plus, Trash2, Settings, Map as MapIcon, FileImage } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Combobox } from "@/components/ui/combobox"
 import { ProductCreationDialog } from "./ProductCreationDialog"
 import { MachineryCreationDialog } from "./MachineryCreationDialog"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import dynamic from "next/dynamic"
+
+const TrackingMap = dynamic(() => import("../tareas/TrackingMap"), {
+    loading: () => <div className="h-[400px] w-full bg-muted animate-pulse rounded-lg" />,
+    ssr: false
+})
 
 interface ExecutionFormProps {
     tarea: any
@@ -35,6 +41,11 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
 
     const [files, setFiles] = useState<FileList | null>(null)
     const [selectedImage, setSelectedImage] = useState<string | null>(null)
+
+    // Parse existing evidences
+    const existingEvidences = useMemo(() => {
+        return tarea.evidencias ? tarea.evidencias.split('\n').filter(Boolean) : []
+    }, [tarea.evidencias])
 
     const getSafeImageSrc = (base64OrUrl: string) => {
         if (!base64OrUrl) return ""
@@ -116,6 +127,8 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+
+            {/* 1. Detalles Principales */}
             <Card>
                 <CardHeader>
                     <CardTitle>Detalles de Ejecución</CardTitle>
@@ -157,7 +170,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Registro Fotográfico (Subir Fotos)</Label>
+                        <Label>Registro Fotográfico (Subir Nuevas Fotos)</Label>
                         <Input
                             type="file"
                             multiple
@@ -167,10 +180,58 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                         />
                         <p className="text-xs text-muted-foreground">Puede seleccionar varias imágenes.</p>
                     </div>
+
+                    {/* Visualización de Evidencias ya cargadas (Tiempo Real) */}
+                    {existingEvidences.length > 0 && (
+                        <div className="pt-4 border-t mt-4">
+                            <Label className="mb-3 block text-sm font-semibold flex items-center gap-2">
+                                <FileImage className="w-4 h-4" />
+                                Evidencias del Desarrollo ({existingEvidences.length})
+                            </Label>
+                            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                                {existingEvidences.map((url: string, idx: number) => (
+                                    <div
+                                        key={idx}
+                                        onClick={() => setSelectedImage(getSafeImageSrc(url))}
+                                        className="relative aspect-square rounded-md overflow-hidden border bg-muted group cursor-pointer"
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={getSafeImageSrc(url)}
+                                            alt={`Evidencia ${idx + 1}`}
+                                            className="object-cover w-full h-full hover:scale-105 transition-transform"
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
-            {/* Display Detailed Photo Reports (Created by Mobile) */}
+            {/* 2. Sección GPS (Nuevo) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <MapIcon className="w-5 h-5" />
+                        Recorrido GPS en Tiempo Real
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {tarea.requiereTrazabilidad ? (
+                        <TrackingMap points={tarea.trazabilidad || []} />
+                    ) : (
+                        <div className="flex items-center justify-center h-32 bg-muted/20 rounded-lg border border-dashed">
+                            <p className="text-muted-foreground italic flex items-center gap-2">
+                                <MapIcon className="w-4 h-4 opacity-50" />
+                                Tarea no requiere trazabilidad GPS.
+                            </p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* 3. Reportes Fotográficos (Móvil - Antes/Despues) */}
             {
                 tarea.reportesFotograficos && tarea.reportesFotograficos.length > 0 && (
                     <Card>
@@ -218,6 +279,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                 )
             }
 
+            {/* 4. Insumos */}
             <Card>
                 <CardHeader className="flex flex-row justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -276,6 +338,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
                 </CardContent>
             </Card>
 
+            {/* 5. Maquinaria */}
             <Card>
                 <CardHeader className="flex flex-row justify-between items-center">
                     <div className="flex items-center gap-2">

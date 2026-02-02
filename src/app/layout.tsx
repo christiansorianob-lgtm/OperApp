@@ -17,7 +17,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body className={inter.className + " relative min-h-screen"}>
+        {/* Subtle Corner Logos */}
+        <div className="fixed top-4 left-4 w-16 h-16 opacity-10 pointer-events-none z-50">
+          <img src="/logo_operapp_final.png" alt="Logo" className="w-full h-full object-contain" />
+        </div>
+        <div className="fixed top-4 right-4 w-16 h-16 opacity-10 pointer-events-none z-50">
+          <img src="/logo_operapp_final.png" alt="Logo" className="w-full h-full object-contain" />
+        </div>
+        <div className="fixed bottom-4 left-4 w-16 h-16 opacity-10 pointer-events-none z-50">
+          <img src="/logo_operapp_final.png" alt="Logo" className="w-full h-full object-contain" />
+        </div>
+        <div className="fixed bottom-4 right-4 w-16 h-16 opacity-10 pointer-events-none z-50">
+          <img src="/logo_operapp_final.png" alt="Logo" className="w-full h-full object-contain" />
+        </div>
+
         {children}
       </body>
     </html>

@@ -27,16 +27,44 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     const startTracking = async (taskId: string) => {
         console.log('[TrackingContext] Starting tracking for task:', taskId);
 
-        // Persist active task ID
+        const success = await startBackgroundUpdate();
+        if (!success) return false;
+
+        // Warm-up: Wait for first valid point (max 15s)
+        try {
+            console.log('[TrackingContext] Waiting for GPS lock...');
+            await new Promise<void>((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    subscription.remove();
+                    // Optional: Reject or just proceed with warning?
+                    // User wanted "optimal", but we shouldn't block forever if they are indoors and need to start.
+                    // Let's resolve anyway but log it. Or maybe return false to let UI decide?
+                    // Plan said: "If timeout: Ask user". But here we are in Context.
+                    // Let's return TRUE but maybe log.
+                    // Actually, if we want to enforce it, we should reject.
+                    // But for robustness, let's resolve after timeout to allow start, just potential gap.
+                    console.log('[TrackingContext] GPS Lock timeout. Starting anyway.');
+                    resolve();
+                }, 12000); // 12 seconds timeout
+
+                const { DeviceEventEmitter } = require('react-native');
+                const subscription = DeviceEventEmitter.addListener('GPS_POINT_SAVED', () => {
+                    console.log('[TrackingContext] GPS Lock acquired!');
+                    clearTimeout(timeout);
+                    subscription.remove();
+                    resolve();
+                });
+            });
+        } catch (e) {
+            console.warn("Error waiting for GPS", e);
+        }
+
+        // Persist active task ID ONLY after we tried to get lock (or timeout)
         const { setActiveTaskId } = require('../services/db');
         await setActiveTaskId(taskId);
 
-        const success = await startBackgroundUpdate();
-        if (success) {
-            setIsTracking(true);
-            return true;
-        }
-        return false;
+        setIsTracking(true);
+        return true;
     };
 
     const stopTracking = async () => {

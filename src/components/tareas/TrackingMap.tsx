@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, LayersControl } from 'react-leaflet';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, LayersControl, CircleMarker, Tooltip } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -27,6 +27,7 @@ interface Point {
     lng: number;
     timestamp: string | Date;
     accuracy?: number;
+    speed?: number;
 }
 
 interface TrackingMapProps {
@@ -134,8 +135,8 @@ export default function TrackingMap({ points }: TrackingMapProps) {
         );
     }
 
-    const pathOptions = { color: 'red', weight: 4 };
-    const polylinePositions = validPoints.map(p => [p.lat, p.lng] as [number, number]);
+    // const pathOptions = { color: 'red', weight: 4 };
+    // const polylinePositions = validPoints.map(p => [p.lat, p.lng] as [number, number]);
 
     const startPoint = validPoints[0];
     const endPoint = validPoints[validPoints.length - 1];
@@ -149,25 +150,75 @@ export default function TrackingMap({ points }: TrackingMapProps) {
             style={{ height: "400px", width: "100%", borderRadius: "0.5rem", zIndex: 0 }}
         >
             <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                maxZoom={22}
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+                maxZoom={20}
             />
 
-            <Polyline pathOptions={pathOptions} positions={polylinePositions} />
+            {/* <Polyline pathOptions={pathOptions} positions={polylinePositions} /> */}
+
+            {validPoints.map((point, index) => (
+                <CircleMarker
+                    key={index}
+                    center={[point.lat, point.lng]}
+                    pathOptions={{ color: 'red', fillColor: '#ef4444', fillOpacity: 0.8, weight: 1 }}
+                    radius={4}
+                >
+                    <Popup>
+                        <div className="text-xs">
+                            <strong>Punto #{index + 1}</strong><br />
+                            {new Date(point.timestamp).toLocaleString()}<br />
+                            <a
+                                href={`https://www.google.com/maps?q=${point.lat},${point.lng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline mt-1 block"
+                            >
+                                Ver en Google Maps
+                            </a>
+                        </div>
+                    </Popup>
+                </CircleMarker>
+            ))}
 
             <Marker position={[startPoint.lat, startPoint.lng]}>
+                <Tooltip permanent direction="bottom" offset={[0, 20]} className="font-bold text-sm">
+                    <span>Inicio: {new Date(startPoint.timestamp).toLocaleTimeString()}</span>
+                </Tooltip>
                 <Popup>
-                    <strong>Inicio</strong><br />
-                    {new Date(startPoint.timestamp).toLocaleString()}
+                    <div className="text-center">
+                        <strong>Punto de Inicio</strong><br />
+                        {new Date(startPoint.timestamp).toLocaleString()}<br />
+                        <a
+                            href={`https://www.google.com/maps?q=${startPoint.lat},${startPoint.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline mt-1 block font-bold"
+                        >
+                            Ver en Google Maps
+                        </a>
+                    </div>
                 </Popup>
             </Marker>
 
             {validPoints.length > 1 && (
                 <Marker position={[endPoint.lat, endPoint.lng]}>
+                    <Tooltip permanent direction="top" offset={[0, -20]} className="font-bold text-sm">
+                        <span>Fin: {new Date(endPoint.timestamp).toLocaleTimeString()}</span>
+                    </Tooltip>
                     <Popup>
-                        <strong>Fin</strong><br />
-                        {new Date(endPoint.timestamp).toLocaleString()}
+                        <div className="text-center">
+                            <strong>Punto Final</strong><br />
+                            {new Date(endPoint.timestamp).toLocaleString()}<br />
+                            <a
+                                href={`https://www.google.com/maps?q=${endPoint.lat},${endPoint.lng}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline mt-1 block font-bold"
+                            >
+                                Ver en Google Maps
+                            </a>
+                        </div>
                     </Popup>
                 </Marker>
             )}

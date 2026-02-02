@@ -88,6 +88,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Image
+                    source={require('../../assets/logo_operapp_final.png')}
+                    style={{ width: 100, height: 80, marginBottom: 10 }}
+                    resizeMode="contain"
+                />
+                <Image
                     source={require('../../assets/logo-ravelo-transparent.png')}
                     style={styles.logoImage}
                     resizeMode="contain"
