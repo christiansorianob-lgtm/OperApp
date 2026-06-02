@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Lock, ShieldCheck, Loader2, AlertCircle } from "lucide-react"
+import { Lock, ShieldCheck, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
 import Image from "next/image"
 
 export default function LoginPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
+    const [showPassword, setShowPassword] = useState(false)
 
     async function handleSubmit(formData: FormData) {
         setLoading(true)
@@ -25,7 +26,6 @@ export default function LoginPage() {
             setError(res.error)
             setLoading(false)
         } else {
-            // Success
             // Success
             if (res.role === 'CLIENTE') {
                 router.push("/portal")
@@ -103,11 +103,18 @@ export default function LoginPage() {
                                 <Input
                                     id="password"
                                     name="password"
-                                    type="password"
+                                    type={showPassword ? "text" : "password"}
                                     required
-                                    className="bg-slate-950/50 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all pl-10"
+                                    className="bg-slate-950/50 border-slate-800 text-slate-100 placeholder:text-slate-600 focus:border-cyan-500/50 focus:ring-cyan-500/20 transition-all pl-10 pr-10"
                                 />
                                 <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
                         </div>
                         <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-medium shadow-lg shadow-cyan-900/20 border border-cyan-500/20 mt-4" disabled={loading}>
