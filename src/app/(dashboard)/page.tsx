@@ -143,7 +143,7 @@ export default async function Home() {
                       {item.tipo} - <span className="text-muted-foreground">{item.codigo}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.cliente?.nombre || 'Sin cliente'} {item.proyecto && `• Proyecto ${item.proyecto.nombre}`} • {new Date(item.updatedAt).toLocaleDateString()}
+                      {item.cliente?.nombre || 'Sin cliente'} {item.proyecto && `• Proyecto ${item.proyecto.nombre}`} • Resp: {item.responsable || 'No asignado'} • {new Date(item.updatedAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">
