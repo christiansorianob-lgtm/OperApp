@@ -110,7 +110,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
                                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Fecha Inicio</h4>
                                 <div className="flex items-center gap-2 text-sm">
                                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                                    {proyecto.fechaInicio ? new Date(proyecto.fechaInicio).toLocaleDateString('es-ES', { dateStyle: 'long' }) : "No definida"}
+                                    {proyecto.fechaInicio ? formatDate(proyecto.fechaInicio) : "No definida"}
                                 </div>
                             </div>
 
@@ -150,6 +150,7 @@ export default async function ProyectoDetailPage({ params }: { params: Promise<{
 
 import { getTareas } from "@/app/actions/tareas"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { formatDate } from "@/lib/utils"
 
 async function TasksTableWrapper({ projetoId }: { projetoId: string }) {
     const { data: tareas, error } = await getTareas({ frenteId: projetoId })
@@ -177,7 +178,7 @@ async function TasksTableWrapper({ projetoId }: { projetoId: string }) {
                 ) : (
                     tareas?.map((tarea) => (
                         <TableRow key={tarea.id}>
-                            <TableCell>{new Date(tarea.fechaProgramada).toLocaleDateString()}</TableCell>
+                            <TableCell>{formatDate(tarea.fechaProgramada)}</TableCell>
                             <TableCell>
                                 <div className="font-medium">{tarea.tipo}</div>
                                 <div className="text-xs text-muted-foreground">{tarea.codigo}</div>

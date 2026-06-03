@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Calendar, Tractor, Package, ArrowRight } from 
 import { db } from "@/lib/db"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { formatDate } from "@/lib/utils"
 
 export const revalidate = 0; // Ensure dynamic data fetching
 
@@ -143,7 +144,7 @@ export default async function Home() {
                       {item.tipo} - <span className="text-muted-foreground">{item.codigo}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.cliente?.nombre || 'Sin cliente'} {item.proyecto && `• Proyecto ${item.proyecto.nombre}`} • Resp: {item.responsable || 'No asignado'} • {new Date(item.updatedAt).toLocaleDateString()}
+                      {item.cliente?.nombre || 'Sin cliente'} {item.proyecto && `• Proyecto ${item.proyecto.nombre}`} • Resp: {item.responsable || 'No asignado'} • {formatDate(item.updatedAt)}
                     </p>
                   </div>
                   <div className="flex items-center gap-4">

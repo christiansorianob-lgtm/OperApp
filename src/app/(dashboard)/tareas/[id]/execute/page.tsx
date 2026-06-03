@@ -11,6 +11,7 @@ import { BackButton } from "@/components/common/BackButton"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { TaskExecutionDetails } from "@/components/tareas/TaskExecutionDetails"
+import { formatDate } from "@/lib/utils"
 
 export default async function ExecuteTaskPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -60,7 +61,7 @@ export default async function ExecuteTaskPage({ params }: { params: Promise<{ id
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <span>Prog: {new Date(tarea.fechaProgramada).toLocaleDateString()}</span>
+                            <span>Prog: {formatDate(tarea.fechaProgramada)}</span>
                         </div>
                         <div className="flex items-center gap-2">
                             <User className="w-4 h-4 text-muted-foreground" />

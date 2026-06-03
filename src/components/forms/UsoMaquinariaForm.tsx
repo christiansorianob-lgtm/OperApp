@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft, Save } from "lucide-react"
 import { Combobox } from "@/components/ui/combobox"
+import { formatDate } from "@/lib/utils"
 
 interface UsoMaquinariaFormProps {
     maquinas: any[]
@@ -31,7 +32,7 @@ export function UsoMaquinariaForm({ maquinas, tareas }: UsoMaquinariaFormProps) 
     const tareaOptions = useMemo(() =>
         tareas.filter(t => t.estado === 'PROGRAMADA' || t.estado === 'EN_PROCESO').map(t => ({
             value: t.id,
-            label: `${t.tipo} ({new Date(t.fechaProgramada).toLocaleDateString()}) - ${t.obra.nombre}`
+            label: `${t.tipo} ({formatDate(t.fechaProgramada)}) - ${t.obra.nombre}`
         }))
         , [tareas])
 

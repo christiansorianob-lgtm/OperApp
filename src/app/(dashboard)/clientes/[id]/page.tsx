@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { User, Calendar, Plus, ClipboardList, Leaf, Pencil, Mail, Phone, MapPin, CreditCard } from "lucide-react"
 
 import { GoBackButton } from "@/components/ui/GoBackButton"
+import { formatDate } from "@/lib/utils"
 
 export default async function ClienteDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
@@ -124,7 +125,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                                 <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                     <Calendar className="h-4 w-4" /> Registrado
                                 </span>
-                                <p className="font-medium">{cliente.createdAt.toLocaleDateString()}</p>
+                                <p className="font-medium">{formatDate(cliente.createdAt)}</p>
                             </div>
                             {cliente.observaciones && (
                                 <div className="space-y-1 sm:col-span-2 lg:col-span-4">
@@ -173,7 +174,7 @@ export default async function ClienteDetailPage({ params }: { params: Promise<{ 
                                                 {[proyecto.municipio, proyecto.departamento].filter(Boolean).join(", ")}
                                             </td>
                                             <td className="p-4 hidden md:table-cell text-sm text-muted-foreground">
-                                                {proyecto.fechaInicio ? new Date(proyecto.fechaInicio).toLocaleDateString('es-ES') : '-'}
+                                                {proyecto.fechaInicio ? formatDate(proyecto.fechaInicio) : '-'}
                                             </td>
                                             <td className="p-4">
                                                 <Badge variant={proyecto.estado === 'EN_EJECUCION' ? 'default' : 'secondary'}>

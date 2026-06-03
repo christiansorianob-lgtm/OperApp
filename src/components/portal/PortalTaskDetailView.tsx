@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Calendar, Clock, MapPin, User, ArrowLeft, CheckCircle, X } from "lucide-react"
 import { Dialog, DialogContent, DialogClose, DialogTitle } from "@/components/ui/dialog"
 import dynamic from "next/dynamic"
+import { formatDate } from "@/lib/utils"
 
 // Dynamic import for Map to avoid SSR issues
 const MapViewer = dynamic(() => import("@/components/ui/MapViewer"), {
@@ -81,7 +82,7 @@ export function PortalTaskDetailView({ tarea }: PortalTaskDetailViewProps) {
                                     <Calendar className="w-4 h-4" /> Fecha Programada
                                 </span>
                                 <p className="text-base font-semibold">
-                                    {new Date(tarea.fechaProgramada).toLocaleDateString()}
+                                    {formatDate(tarea.fechaProgramada)}
                                 </p>
                             </div>
 

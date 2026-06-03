@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Calendar, CheckCircle, Clock } from "lucide-react"
+import { formatDate } from "@/lib/utils"
 
 export const dynamic = 'force-dynamic'
 
@@ -110,7 +111,7 @@ export default async function ProjectDetailPage(props: Props) {
                                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Fecha Inicio</h4>
                                 <div className="flex items-center gap-2 text-sm">
                                     <Calendar className="w-4 h-4 text-muted-foreground" />
-                                    {project.fechaInicio ? new Date(project.fechaInicio).toLocaleDateString('es-ES', { dateStyle: 'long' }) : "No definida"}
+                                    {project.fechaInicio ? formatDate(project.fechaInicio) : "No definida"}
                                 </div>
                             </div>
 
@@ -159,7 +160,7 @@ export default async function ProjectDetailPage(props: Props) {
                                                     <div className="flex items-center gap-1">
                                                         <Calendar className="w-4 h-4" />
                                                         <span className="font-medium">Programada:</span>
-                                                        {new Date(tarea.fechaProgramada).toLocaleDateString()}
+                                                        {formatDate(tarea.fechaProgramada)}
                                                     </div>
                                                     <div className="flex items-center gap-1">
                                                         <Clock className="w-4 h-4" />

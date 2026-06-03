@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MapPin, Calendar, Activity, ArrowRight, Package } from "lucide-react"
 import Link from "next/link"
+import { formatDate } from "@/lib/utils"
 
 export const dynamic = 'force-dynamic'
 
@@ -90,7 +91,7 @@ export default async function PortalDashboard() {
                                             <Calendar className="w-3 h-3" /> Inicio
                                         </span>
                                         <p className="text-sm font-medium">
-                                            {project.fechaInicio ? project.fechaInicio.toLocaleDateString() : 'Pendiente'}
+                                            {project.fechaInicio ? formatDate(project.fechaInicio) : 'Pendiente'}
                                         </p>
                                     </div>
                                 </div>
