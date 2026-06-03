@@ -3,8 +3,7 @@
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
-import { writeFile, mkdir } from "fs/promises"
-import path from "path"
+import { put } from "@vercel/blob"
 
 export async function getTareas(filters?: { obraId?: string, frenteId?: string, nivel?: "CLIENTE" | "PROYECTO", estado?: string[], delayed?: boolean }) {
     try {
@@ -108,10 +107,28 @@ export async function createTarea(formData: FormData) {
 
     try {
         // Auto-generate Code
+        // Auto-generate Code
         let finalCodigo = (formData.get("codigo") as string) || ""
         if (!finalCodigo) {
-            const count = await db.tarea.count({ where: { clienteId } })
-            finalCodigo = `TAR-${(count + 1).toString().padStart(4, '0')}`
+            // Start checking from the total count of tasks + 1 (Global scope to avoid unique constraint error)
+            let sequence = (await db.tarea.count()) + 1
+            let isUnique = false
+
+            while (!isUnique) {
+                const candidate = `TAR-${sequence.toString().padStart(4, '0')}`
+                // Check if this specific code exists
+                const existing = await db.tarea.findUnique({
+                    where: { codigo: candidate },
+                    select: { id: true } // Optimization
+                })
+
+                if (!existing) {
+                    finalCodigo = candidate
+                    isUnique = true
+                } else {
+                    sequence++
+                }
+            }
         }
 
         await db.tarea.create({
@@ -136,6 +153,9 @@ export async function createTarea(formData: FormData) {
     }
 
     revalidatePath('/tareas')
+    if (proyectoId) {
+        revalidatePath(`/proyectos/${proyectoId}`)
+    }
     // redirect('/tareas')
     return { success: true }
 }
@@ -157,24 +177,19 @@ export async function executeTarea(id: string, formData: FormData) {
     const uploadedUrls: string[] = []
 
     if (files && files.length > 0) {
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "tareas")
-
-        try {
-            await mkdir(uploadDir, { recursive: true })
-        } catch (e) {
-            // Ignore if exists
-        }
-
         for (const file of files) {
             if (file.size === 0) continue;
             const buffer = Buffer.from(await file.arrayBuffer())
             const fileName = `${Date.now()}-${file.name.replace(/\s/g, '-')}`
-            const filePath = path.join(uploadDir, fileName)
+            
             try {
-                await writeFile(filePath, buffer)
-                uploadedUrls.push(`/uploads/tareas/${fileName}`)
+                const blob = await put(`tareas/evidencias/${fileName}`, buffer, { 
+                    access: 'public',
+                    contentType: file.type || 'application/octet-stream'
+                })
+                uploadedUrls.push(blob.url)
             } catch (error) {
-                console.error("Error saving file:", error)
+                console.error("Error uploading to Vercel Blob:", error)
             }
         }
     }

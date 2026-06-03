@@ -392,8 +392,8 @@ model DetalleFotografico {
   id          String   @id @default(cuid())
   tareaId     String
   tarea       Tarea    @relation(fields: [tareaId], references: [id])
-  fotoAntes   String   // Base64
-  fotoDespues String   // Base64
+  fotoAntes   String   // URL de Vercel Blob
+  fotoDespues String   // URL de Vercel Blob
   comentario  String?  @db.Text
   createdAt   DateTime @default(now())
 }

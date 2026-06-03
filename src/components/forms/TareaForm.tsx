@@ -142,7 +142,12 @@ export function TareaForm({ clientes, proyectos, tiposActividad: initialTipos, r
     }
 
     const handleClose = () => {
-        router.back()
+        if (selectedProyecto) {
+            router.push(`/proyectos/${selectedProyecto}`)
+        } else {
+            router.push('/tareas')
+        }
+        router.refresh()
     }
 
     const handleNotify = () => {
