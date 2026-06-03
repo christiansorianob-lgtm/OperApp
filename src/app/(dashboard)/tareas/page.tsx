@@ -5,7 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { getTareas } from "@/app/actions/tareas"
 import { Plus } from "lucide-react"
 import { BackButton } from "@/components/common/BackButton"
-
+import { format } from "date-fns"
+import { es } from "date-fns/locale"
 export default async function TareasPage(props: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
     const searchParams = await props.searchParams
     // Map URL params legacy -> new
@@ -125,7 +126,7 @@ export default async function TareasPage(props: { searchParams: Promise<{ [key: 
                                 tareas?.map((tarea) => (
                                     <TableRow key={tarea.id}>
                                         <TableCell className="font-medium">
-                                            {new Date(tarea.fechaProgramada).toLocaleDateString()}
+                                            {format(new Date(tarea.fechaProgramada), "d/MMM/yyyy", { locale: es }).replace(/\/([a-z])/, (match, p1) => `/${p1.toUpperCase()}`)}
                                         </TableCell>
                                         <TableCell>
                                             <div className="font-medium">{tarea.tipo}</div>

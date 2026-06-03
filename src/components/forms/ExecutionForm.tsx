@@ -37,7 +37,7 @@ export function ExecutionForm({ tarea, productos, maquinaria }: ExecutionFormPro
     const [evidencias, setEvidencias] = useState(tarea.evidencias || "")
     const [consumos, setConsumos] = useState<{ id: string, productoId: string, cantidad: number }[]>([])
     const [usosMaquinaria, setUsosMaquinaria] = useState<{ id: string, maquinaId: string, horas: number }[]>([])
-    const [executionDate, setExecutionDate] = useState(new Date().toISOString().split('T')[0])
+    const [executionDate, setExecutionDate] = useState(new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])
 
     const [files, setFiles] = useState<FileList | null>(null)
     const [selectedImage, setSelectedImage] = useState<string | null>(null)

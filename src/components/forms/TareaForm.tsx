@@ -65,7 +65,7 @@ export function TareaForm({ clientes, proyectos, tiposActividad: initialTipos, r
     const [selectedResponsable, setSelectedResponsable] = useState("")
     const [selectedPrioridad, setSelectedPrioridad] = useState("MEDIA")
     const [selectedEstado, setSelectedEstado] = useState("PROGRAMADA")
-    const [fechaProgramada, setFechaProgramada] = useState(new Date().toISOString().split('T')[0])
+    const [fechaProgramada, setFechaProgramada] = useState(new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0])
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [createdTask, setCreatedTask] = useState<{ id: string, responsableId: string, tipo: string, proyectoNombre: string } | null>(null)
